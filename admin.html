@@ -43,7 +43,7 @@
     thead th { position: sticky; top: 0; z-index: 3; background: #f3f7fb; cursor: pointer; user-select: none; }
     thead tr.filters th { cursor: default; padding: 4px; z-index: 3; }
     thead tr.filters input, thead tr.filters select { width: 100%; min-width: 80px; padding: .25em .4em; font-size: .85rem; }
-    th.stick, td.stick { position: sticky; inset-inline-start: 0; z-index: 2; border-inline-end: 2px solid var(--line); }
+    th.stick, td.stick { position: sticky; inset-inline-start: 0; z-index: 2; border-inline-end: 2px solid var(--line); min-width: 6.2em; } /* מינימום רוחב: בטבלה ריקה אין שם ארוך שקובע את הרוחב, והכותרת הייתה גולשת על העמודה שלידה */
     thead th.stick, thead tr.filters th.stick { z-index: 5; }
     td.cell { cursor: pointer; min-width: 70px; }
     /* העמודה הצמודה: הרוחב נקבע לפי השם הארוך ביותר. הכותרת והסינון לא מרחיבים אותה (הכותרת עוברת שורה אם צריך) */
