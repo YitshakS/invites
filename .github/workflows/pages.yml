@@ -1,0 +1,43 @@
+# בונה ומפרסם את האתר ב-GitHub Pages.
+# רץ בכל push ל-main, ובנוסף כשהסקריפט של אירוע מפעיל אותו אחרי שינוי בכותרת או בתיאור של תצוגת הקישור (workflow_dispatch).
+# שלב הבנייה קורא את הכותרת והתיאור מהגיליון של כל אירוע ויוצר את דפי העטיפה (index.html) לתצוגת הוואטסאפ.
+# דרוש פעם אחת: Settings, Pages, Source = GitHub Actions.
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build event pages from the sheets
+        run: node tools/build-event.mjs --from-sheet
+      - uses: actions/configure-pages@v5
+      - name: Package site
+        run: |
+          mkdir _site
+          cp -r index.html invite.js common.js style.css admin.html events _site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
