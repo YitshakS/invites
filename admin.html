@@ -149,14 +149,14 @@
         <h2 class="sech">הודעת וואטסאפ</h2>
         <div class="split">
           <div class="col">
-            <label for="tplMsg">נוסח ההודעה</label>
+            <label for="shTitle">כותרת ראשית</label>
+            <input id="shTitle" style="width:100%;margin:2px 0 10px">
+            <label for="shDesc">כותרת משנית</label>
+            <input id="shDesc" style="width:100%;margin:2px 0 6px">
+            <p class="muted" style="font-size:.8rem;margin:0">שינוי בכותרות מעדכן את האתר, ותצוגת הקישור החדשה תופיע אחרי כדקה. הודעות שכבר נשלחו לא יתעדכנו.</p>
+            <label for="tplMsg" style="display:block;margin-top:12px">נוסח</label>
             <textarea id="tplMsg" rows="9"></textarea>
             <p class="hint"><code>*טקסט*</code> הדגשה · <code>{שם בהזמנה}</code> <code>{שם פרטי}</code> <code>{שם משפחה}</code> · <code>{א|ב|ג|ד}</code> יחיד, יחידה, רבים, רבות · <code>{קישור}</code> הקישור האישי</p>
-            <label for="shTitle">כותרת תצוגת הקישור</label>
-            <input id="shTitle" style="width:100%;margin:2px 0 10px">
-            <label for="shDesc">תיאור תצוגת הקישור</label>
-            <input id="shDesc" style="width:100%;margin:2px 0 4px">
-            <p class="muted" style="font-size:.8rem;margin:0">שינוי בכותרת או בתיאור מעדכן את האתר, ותצוגת הקישור החדשה תופיע אחרי כדקה. הודעות שכבר נשלחו לא יתעדכנו.</p>
           </div>
           <div class="col"><div class="wapv" id="waPrev"></div></div>
         </div>
@@ -284,17 +284,16 @@
 
   // ---------- נוסחים ----------
   function textPreview() {
-    const g = guests[0] || { display: 'דוד', first: 'דוד', last: 'כהן', form: 'יחיד', id: 'example' };
-    const sample = { display: g.display, first: g.first || 'דוד', last: g.last || 'כהן', form: g.form || 'יחיד', id: g.id || 'example' };
-    // תצוגת הדף היא הדף האמיתי של המוזמן הראשון, בתוך iframe, עם הנוסח שעדיין לא נשמר
+    // אורח לדוגמה, אותו אחד בהודעת הוואטסאפ ובדף ההזמנה, גם כשהרשימה ריקה
+    const sample = { display: 'דוד', first: 'דוד', last: 'כהן', form: 'יחיד', id: 'example' };
+    // תצוגת הדף היא דף ההזמנה האמיתי, בתוך iframe, עם הנוסח שעדיין לא נשמר
     const holder = $('#tplPrevPage');
-    if (!guests.length) holder.textContent = 'הוסיפו מוזמן כדי לראות תצוגה מקדימה של הדף';
-    else if (!holder.querySelector('iframe')) {
+    if (!holder.querySelector('iframe')) {
       const f = document.createElement('iframe');
       f.id = 'tplFrame'; f.title = 'תצוגה מקדימה של דף ההזמנה';
       f.scrolling = 'no';
       f.style.cssText = 'width:100%;height:600px;border:0;border-radius:10px;background:#fff;display:block';
-      f.src = link(g) + '&preview=1';
+      f.src = ROOT + 'events/' + EVENT + '/?sample=1';
       holder.replaceChildren(f);
     } else sendTpl();
     // בועת וואטסאפ: כרטיס תצוגת הקישור (תמונה, כותרת ותיאור מ-share ב-config.js) ומתחתיו נוסח ההודעה

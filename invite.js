@@ -154,10 +154,13 @@ function render(g) {
   try { await loadEvent(); } catch (e) { return notFound(); }
   document.title = CONFIG.title || 'הזמנה';
   try { adminToken = localStorage.getItem(tokenKey()) || ''; } catch (e) {}
-  PREVIEW = new URLSearchParams(location.search).get('preview') === '1' && !!adminToken;
-  if (!id) return notFound();
+  // sample=1: תצוגה מקדימה עם אורח לדוגמה (דוד כהן), בלי לטעון אורח מהשרת. משמשת את לשונית "נוסחים"
+  const SAMPLE = new URLSearchParams(location.search).get('sample') === '1';
+  PREVIEW = SAMPLE || (new URLSearchParams(location.search).get('preview') === '1' && !!adminToken);
+  if (!id && !SAMPLE) return notFound();
   try {
-    const g = PREVIEW ? await api('preview', { token: adminToken, id }) : await getInvitation(id);
+    const g = SAMPLE ? { ok: true, display: 'דוד', first: 'דוד', last: 'כהן', form: 'יחיד', count: null }
+      : PREVIEW ? await api('preview', { token: adminToken, id }) : await getInvitation(id);
     if (g.error === 'unauthorized' || g.error === 'locked') { app.innerHTML = '<p>אין הרשאה לתצוגה מקדימה. היכנסו קודם לדף הניהול.</p>'; return; }
     if (!g.ok) return notFound();
     render(g);
