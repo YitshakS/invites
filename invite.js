@@ -39,6 +39,9 @@ function render(g) {
     '<div class="stepper"><button type="button" id="minus" aria-label="הפחת">-</button>' +
     '<input type="number" id="count" min="0" max="50" inputmode="numeric" value="' + (g.count == null ? '' : g.count) + '">' +
     '<button type="button" id="plus" aria-label="הוסף">+</button></div>' +
+    (CONFIG.transport ? '<div class="tr" id="trBox" hidden><span>מעוניינים בהסעה?</span>' +
+      '<label><input type="radio" name="tr" value="כן"' + (g.transport === 'כן' ? ' checked' : '') + '> כן</label>' +
+      '<label><input type="radio" name="tr" value="לא"' + (g.transport === 'לא' ? ' checked' : '') + '> לא</label></div>' : '') +
     '<button type="button" class="primary" id="ok" disabled>אישור</button>' +
     '<p id="msg"></p>' +
     (MAP ? '<p class="mapbox"><span class="muted">מפת הגעה (לחיצה להגדלה)</span><a href="' + esc(MAP) + '"><img class="map" src="' + esc(MAP) + '" alt="מפת הגעה"></a></p>' : '');
@@ -109,15 +112,25 @@ function render(g) {
     };
     stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', e => { pts.delete(e.pointerId); });
   }
+  // הסעה (רק באירוע עם transport ב-config.js): נשאלת רק כשיש משתתפים, ונשמרת יחד עם הכמות
+  const trBox = document.getElementById('trBox');
+  const trVal = () => { const r = app.querySelector('input[name="tr"]:checked'); return r ? r.value : ''; };
+  let savedTr = g.transport || '';
   function check() {
+    const n = count.value === '' ? NaN : Number(count.value);
+    if (trBox) trBox.hidden = !(n > 0);
     if (PREVIEW) { ok.disabled = true; return; }
-    const v = count.value === '' ? NaN : Number(count.value);
+    const v = n;
     msg.className = '';
     if (!Number.isInteger(v) || v < 0 || v > 50) { msg.textContent = '⚠️ ערך לא חוקי'; msg.className = 'bad'; ok.disabled = true; return; }
-    if (v === saved) { ok.disabled = true; msg.textContent = '🟰 הכמות שנבחרה זהה לכמות שכבר נשמרה'; return; }
+    if (trBox && v > 0 && !trVal()) { ok.disabled = true; msg.textContent = 'יש לבחור אם מעוניינים בהסעה'; return; }
+    const tr = trBox && v > 0 ? trVal() : '';
+    if (v === saved && (!trBox || tr === (saved === 0 ? '' : savedTr))) { ok.disabled = true; msg.textContent = trBox ? '🟰 הפרטים שנבחרו זהים לפרטים שכבר נשמרו' : '🟰 הכמות שנבחרה זהה לכמות שכבר נשמרה'; return; }
     ok.disabled = false; msg.textContent = '';
   }
   count.addEventListener('input', check);
+  app.querySelectorAll('input[name="tr"]').forEach(r => r.addEventListener('change', check));
+  if (trBox) trBox.hidden = !(Number(count.value) > 0);
   document.getElementById('minus').onclick = () => { count.value = Math.max(0, (Number(count.value) || 0) - 1); check(); };
   document.getElementById('plus').onclick = () => { count.value = Math.min(50, (Number(count.value) || 0) + 1); check(); };
 
@@ -127,9 +140,10 @@ function render(g) {
     ok.innerHTML = '<span class="spin sm"></span>אישור';
     sending = true;
     try {
-      const r = await api('rsvp', { id, count: v });
+      const tr = trBox && v > 0 ? trVal() : '';
+      const r = await api('rsvp', trBox ? { id, count: v, transport: tr } : { id, count: v });
       if (!r.ok) throw new Error(r.error);
-      saved = v;
+      saved = v; savedTr = tr;
       msg.className = 'good';
       msg.textContent = v === 0
         ? 'תודה, העדכון התקבל. בעז"ה נתראה בשמחות הבאות'

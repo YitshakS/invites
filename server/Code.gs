@@ -3,14 +3,16 @@
 // כל אירוע = גיליון משלו + פרויקט Apps Script משלו (עותק של הקובץ הזה) + סיסמה משלו.
 
 const SHEET_NAME = 'הזמנות';
-const HEADERS = ['שולחן', 'שם פרטי', 'שם משפחה', 'שם בהזמנה', 'נוסח הפניה', 'מספר טלפון נייד', 'מזהה', 'ההזמנה נצפתה לאחרונה', 'כמות משתתפים', 'ההזמנה נשלחה לאחרונה', 'הערות'];
-const COL = { TABLE: 1, FIRST: 2, LAST: 3, DISPLAY: 4, FORM: 5, PHONE: 6, ID: 7, VIEWED: 8, COUNT: 9, SENT: 10, NOTE: 11 };
+const TRANSPORT = false; // true רק באירוע עם הסעה: מוסיף עמודה "הסעה" (כן/לא) שהמוזמן ממלא בדף. חייב להתאים ל-transport ב-config.js של האירוע
+const HEADERS = ['שולחן', 'שם פרטי', 'שם משפחה', 'שם בהזמנה', 'נוסח הפניה', 'מספר טלפון נייד', 'מזהה', 'ההזמנה נצפתה לאחרונה', 'כמות משתתפים', 'ההזמנה נשלחה לאחרונה', 'הערות'].concat(TRANSPORT ? ['הסעה'] : []);
+const COL = { TABLE: 1, FIRST: 2, LAST: 3, DISPLAY: 4, FORM: 5, PHONE: 6, ID: 7, VIEWED: 8, COUNT: 9, SENT: 10, NOTE: 11, TRANSPORT: 12 };
 const SETTINGS_SHEET = 'הגדרות';
 const MAX_FAILS = 5;
 const LOCK_MINUTES = 15;
 const DT_FORMAT = 'dd/mm/yyyy hh:mm:ss'; // תאריך ושעה (עם דקות ושניות) בעמודות הצפיה והשליחה
 const FORMS = ['יחיד', 'יחידה', 'רבים', 'רבות'];
 const EDITABLE = { table: COL.TABLE, first: COL.FIRST, last: COL.LAST, display: COL.DISPLAY, form: COL.FORM, note: COL.NOTE };
+if (TRANSPORT) EDITABLE.transport = COL.TRANSPORT;
 
 // נוסחי ברירת מחדל. מילים שמורות: {שם בהזמנה} {שם פרטי} {שם משפחה}, ובוואטסאפ גם {קישור}. {א|ב|ג|ד} = ארבע צורות לפי נוסח הפניה
 const DEFAULT_PAGE = '**{שם בהזמנה} {היקר|היקרה|היקרים|היקרות}**\nבשבח והודיה לה\' יתברך\nאנו שמחים ונרגשים {להודיעך|להודיעך|להודיעכם|להודיעכן}\nעל שמחת האירוע שלנו\n\nשתתקיים בעז"ה\n*תאריך האירוע\nשעת האירוע\nמקום האירוע*';
@@ -55,7 +57,7 @@ function doGet(e) {
     const g = find_(id);
     if (!g) return json_({ ok: false, error: 'not_found' });
     sheet_().getRange(g.row, COL.VIEWED).setNumberFormat(DT_FORMAT).setValue(new Date());
-    return json_({ ok: true, display: g.display || g.first, first: g.first, last: g.last, form: g.form, count: g.count, pageTemplate: readTemplates_().page });
+    return json_({ ok: true, display: g.display || g.first, first: g.first, last: g.last, form: g.form, count: g.count, transport: g.transport, pageTemplate: readTemplates_().page });
   });
 }
 
@@ -87,7 +89,7 @@ function doPost(e) {
       case 'delete': return withLock_(() => delete_(d));
       case 'preview': {
         const g = find_(String(d.id || '').trim()); // קריאה בלבד: לא נרשמת צפיה
-        return g ? json_({ ok: true, display: g.display || g.first, first: g.first, last: g.last, form: g.form, count: g.count, pageTemplate: readTemplates_().page }) : json_({ ok: false, error: 'not_found' });
+        return g ? json_({ ok: true, display: g.display || g.first, first: g.first, last: g.last, form: g.form, count: g.count, transport: g.transport, pageTemplate: readTemplates_().page }) : json_({ ok: false, error: 'not_found' });
       }
       default: return json_({ ok: false, error: 'bad_action' });
     }
@@ -177,6 +179,10 @@ function rsvp_(d) {
   const g = find_(String(d.id || '').trim());
   if (!g) return json_({ ok: false, error: 'not_found' });
   sheet_().getRange(g.row, COL.COUNT).setValue(count);
+  if (TRANSPORT && 'transport' in d) {
+    if (d.transport !== 'כן' && d.transport !== 'לא' && d.transport !== '') return json_({ ok: false, error: 'bad_transport' });
+    sheet_().getRange(g.row, COL.TRANSPORT).setValue(count === 0 ? '' : d.transport);
+  }
   return json_({ ok: true });
 }
 
@@ -193,7 +199,7 @@ function add_(list) {
     if (existing.has(id)) { duplicates.push(first); return; }
     existing.add(id);
     const form = FORMS.indexOf(x.form) >= 0 ? x.form : 'יחיד';
-    rows.push([x.table || '', first, x.last || '', x.display || '', form, formatPhone_(phone), id, '', '', '', x.note || '']);
+    rows.push([x.table || '', first, x.last || '', x.display || '', form, formatPhone_(phone), id, '', '', '', x.note || ''].concat(TRANSPORT ? [''] : []));
   });
   if (rows.length) {
     const start = sh.getLastRow() + 1;
@@ -238,7 +244,7 @@ function sig_(g) {
   const s = v => (v ? Math.floor(new Date(v).getTime() / 1000) : '');
   const t = v => String(v == null ? '' : v).trim();
   return JSON.stringify([t(g.table), t(g.first), t(g.last), t(g.display), t(g.form), t(g.phone), t(g.id), s(g.viewed),
-    g.count === null || g.count === '' || g.count === undefined ? '' : Number(g.count), s(g.sent), t(g.note)]);
+    g.count === null || g.count === '' || g.count === undefined ? '' : Number(g.count), s(g.sent), t(g.note)].concat(TRANSPORT ? [t(g.transport)] : []));
 }
 
 function delete_(d) {
@@ -288,7 +294,7 @@ function readAll_() {
   const iso = v => (v instanceof Date ? v.toISOString() : '');
   return sh.getRange(2, 1, n, HEADERS.length).getValues().map((r, i) => ({
     row: i + 2, table: r[0], first: r[1], last: r[2], display: r[3], form: r[4], phone: String(r[5]),
-    id: String(r[6]), viewed: iso(r[7]), count: r[8] === '' ? null : Number(r[8]), sent: iso(r[9]), note: r[10]
+    id: String(r[6]), viewed: iso(r[7]), count: r[8] === '' ? null : Number(r[8]), sent: iso(r[9]), note: r[10], transport: r[11] == null ? '' : String(r[11])
   }));
 }
 

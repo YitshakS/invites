@@ -434,7 +434,7 @@
   function render() {
     const total = guests.length, sent = guests.filter(g => g.sent).length, viewed = guests.filter(g => g.viewed).length;
     const rep = guests.filter(replied).length, coming = guests.reduce((s, g) => s + (g.count > 0 ? g.count : 0), 0);
-    $('#stats').innerHTML = [['אנשי קשר', total], ['הזמנות שנשלחו', sent], ['הזמנות שנצפו', viewed], ['תגובות', rep], ['סה״כ משתתפים', coming]].map(x => '<div><b>' + x[1] + '</b>' + x[0] + '</div>').join('');
+    $('#stats').innerHTML = [['אנשי קשר', total], ['הזמנות שנשלחו', sent], ['הזמנות שנצפו', viewed], ['תגובות', rep], ['סה״כ משתתפים', coming]].concat(CONFIG.transport ? [['משתתפים בהסעה', guests.reduce((s, g) => s + (g.transport === 'כן' && g.count > 0 ? g.count : 0), 0)]] : []).map(x => '<div><b>' + x[1] + '</b>' + x[0] + '</div>').join('');
     renderBody();
   }
 
@@ -726,6 +726,8 @@
 
   loadEvent().then(() => {
     document.title = 'ניהול הזמנות - ' + (CONFIG.title || EVENT);
+    // עמודת "הסעה" רק באירוע שמפעיל אותה (transport ב-config.js, ו-TRANSPORT בסקריפט)
+    if (CONFIG.transport) COLS.splice(COLS.findIndex(c => c.k === 'count') + 1, 0, { k: 'transport', t: 'הסעה (כן/לא)', type: 'text' });
     try { token = localStorage.getItem(tokenKey()) || ''; } catch (e) {}
     if (!CONFIG.API_URL) token = 'demo';
     if (token) load().catch(() => {}); else showLogin('');
