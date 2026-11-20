@@ -71,6 +71,7 @@ input, select { border: 1px solid var(--line); border-radius: 10px; padding: .4e
 .mapbox .muted { display: block; font-size: .8rem; margin-bottom: 4px; }
 
 .stepper { display: flex; justify-content: center; align-items: center; gap: 6px; margin: .5em 0 1em; }
+.stepper label { margin: 0 0 0 6px; white-space: nowrap; }
 .stepper button, .stepper input { height: clamp(40px, 5.5vh, 58px); }
 .stepper button { width: clamp(40px, 5.5vh, 58px); padding: 0; font-size: 1.3em; font-family: monospace; background: transparent; transition: background-color .2s, color .2s; }
 .stepper input { width: clamp(70px, 11vh, 118px); text-align: center; padding-inline: 0; appearance: textfield; -moz-appearance: textfield; }

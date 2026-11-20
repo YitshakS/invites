@@ -15,7 +15,7 @@
     .tabs button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
     .tabs #refresh { flex: 0 0 auto; }
     /* חמש הכותרות תמיד בשורה אחת: הטקסט קטן עם רוחב המסך ואינו עובר שורה */
-    .stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; text-align: center; font-size: clamp(.45rem, 2.3vw, .9rem); white-space: nowrap; padding-inline: 4px; }
+    .stats { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; text-align: center; font-size: clamp(.45rem, 2.3vw, .9rem); white-space: nowrap; padding-inline: 4px; }
     .stats > div { min-width: 0; }
     .stats b { display: block; font-size: clamp(.95rem, 5vw, 1.4rem); color: var(--accent); }
     .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }

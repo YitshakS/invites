@@ -35,8 +35,7 @@ function render(g) {
     (PREVIEW ? '<div class="banner"><b>תצוגה מקדימה בלבד!</b> הצפיה בהזמנה ואישור כמות המשתתפים אינם נשמרים במאגר הנתונים</div>' : '') +
     pageHtml(tplOverride != null ? (tplOverride || DEFAULT_PAGE) : (CONFIG.pageTemplate || g.pageTemplate || DEFAULT_PAGE), guestVars(g)) +
     '<p class="ask">על מנת שנוכל להיערך נשמח ' + w.confirm + '</p>' +
-    '<label for="count">כמות המשתתפים</label>' +
-    '<div class="stepper"><button type="button" id="minus" aria-label="הפחת">-</button>' +
+    '<div class="stepper"><label for="count">כמות המשתתפים</label><button type="button" id="minus" aria-label="הפחת">-</button>' +
     '<input type="number" id="count" min="0" max="50" inputmode="numeric" value="' + (g.count == null ? '' : g.count) + '">' +
     '<button type="button" id="plus" aria-label="הוסף">+</button></div>' +
     (CONFIG.transport ? '<div class="tr" id="trBox" hidden><span>מעוניינים בהסעה?</span>' +
