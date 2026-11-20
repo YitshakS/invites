@@ -3,7 +3,7 @@
 // כל אירוע = גיליון משלו + פרויקט Apps Script משלו (עותק של הקובץ הזה) + סיסמה משלו.
 
 const SHEET_NAME = 'הזמנות';
-const TRANSPORT = false; // true רק באירוע עם הסעה: מוסיף עמודה "הסעה" (כן/לא) שהמוזמן ממלא בדף. חייב להתאים ל-transport ב-config.js של האירוע
+const TRANSPORT = false; // true רק באירוע עם הסעה: מוסיף עמודה "הסעה" (מספר המקומות שהמוזמן ביקש; 0 = לא מעוניין, ריק = לא ענה) שהמוזמן ממלא בדף. חייב להתאים ל-transport ב-config.js של האירוע
 const HEADERS = ['שולחן', 'שם פרטי', 'שם משפחה', 'שם בהזמנה', 'נוסח הפניה', 'מספר טלפון נייד', 'מזהה', 'ההזמנה נצפתה לאחרונה', 'כמות משתתפים', 'ההזמנה נשלחה לאחרונה', 'הערות'].concat(TRANSPORT ? ['הסעה'] : []);
 const COL = { TABLE: 1, FIRST: 2, LAST: 3, DISPLAY: 4, FORM: 5, PHONE: 6, ID: 7, VIEWED: 8, COUNT: 9, SENT: 10, NOTE: 11, TRANSPORT: 12 };
 const SETTINGS_SHEET = 'הגדרות';
@@ -180,8 +180,11 @@ function rsvp_(d) {
   if (!g) return json_({ ok: false, error: 'not_found' });
   sheet_().getRange(g.row, COL.COUNT).setValue(count);
   if (TRANSPORT && 'transport' in d) {
-    if (d.transport !== 'כן' && d.transport !== 'לא' && d.transport !== '') return json_({ ok: false, error: 'bad_transport' });
-    sheet_().getRange(g.row, COL.TRANSPORT).setValue(count === 0 ? '' : d.transport);
+    // הסעה: מספר המקומות (0 = לא מעוניין), ריק = לא ענה. כשהכמות הכללית 0, מי שענה קודם נשאר עם 0 (אינדיקציה לביטול)
+    const tr = d.transport === '' ? '' : Number(d.transport);
+    if (tr !== '' && (!Number.isInteger(tr) || tr < 0 || tr > count)) return json_({ ok: false, error: 'bad_transport' });
+    const prev = g.transport === '' || g.transport == null ? '' : Number(g.transport);
+    sheet_().getRange(g.row, COL.TRANSPORT).setValue(count === 0 ? (prev === '' ? '' : 0) : tr);
   }
   return json_({ ok: true });
 }
@@ -294,7 +297,7 @@ function readAll_() {
   const iso = v => (v instanceof Date ? v.toISOString() : '');
   return sh.getRange(2, 1, n, HEADERS.length).getValues().map((r, i) => ({
     row: i + 2, table: r[0], first: r[1], last: r[2], display: r[3], form: r[4], phone: String(r[5]),
-    id: String(r[6]), viewed: iso(r[7]), count: r[8] === '' ? null : Number(r[8]), sent: iso(r[9]), note: r[10], transport: r[11] == null ? '' : String(r[11])
+    id: String(r[6]), viewed: iso(r[7]), count: r[8] === '' ? null : Number(r[8]), sent: iso(r[9]), note: r[10], transport: r[11] === '' || r[11] == null ? '' : (isNaN(Number(r[11])) ? String(r[11]) : Number(r[11]))
   }));
 }
 

@@ -108,3 +108,6 @@ input, select { border: 1px solid var(--line); border-radius: 10px; padding: .4e
 .tr { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 14px 0 4px; flex-wrap: wrap; }
 .tr[hidden] { display: none; }
 .tr label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+.tr .trn { display: flex; align-items: center; justify-content: center; gap: 8px; flex-basis: 100%; }
+.tr .trn[hidden] { display: none; }
+.tr .trn input { width: 4.5em; height: 36px; text-align: center; padding-inline: 0; }

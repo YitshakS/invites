@@ -30,6 +30,8 @@ function render(g) {
     'רבות': { see1: 'נשמח לראותכן', seeN: 'נשמח לראותכן' }
   }[g.form] || { see1: 'נשמח לראותך', seeN: 'נשמח לראותכם' };
   saved = g.count;
+  // הסעה: מספר המקומות שהמוזמן ביקש. ריק = לא ענה, 0 = לא מעוניין
+  const trSaved = g.transport === '' || g.transport == null || isNaN(Number(g.transport)) ? '' : Number(g.transport);
   lastG = g;
   app.innerHTML =
     (PREVIEW ? '<div class="banner"><b>תצוגה מקדימה בלבד!</b> הצפיה בהזמנה ואישור כמות המשתתפים אינם נשמרים במאגר הנתונים</div>' : '') +
@@ -39,8 +41,10 @@ function render(g) {
     '<input type="number" id="count" min="0" max="50" inputmode="numeric" value="' + (g.count == null ? '' : g.count) + '">' +
     '<button type="button" id="plus" aria-label="הוסף">+</button></div>' +
     (CONFIG.transport ? '<div class="tr" id="trBox" hidden><span>מעוניינים בהסעה?</span>' +
-      '<label><input type="radio" name="tr" value="כן"' + (g.transport === 'כן' ? ' checked' : '') + '> כן</label>' +
-      '<label><input type="radio" name="tr" value="לא"' + (g.transport === 'לא' ? ' checked' : '') + '> לא</label></div>' : '') +
+      '<label><input type="radio" name="tr" value="כן"' + (trSaved > 0 ? ' checked' : '') + '> כן</label>' +
+      '<label><input type="radio" name="tr" value="לא"' + (trSaved === 0 ? ' checked' : '') + '> לא</label>' +
+      '<span class="trn" id="trN" hidden><label for="trNum">כמה מקומות בהסעה?</label>' +
+      '<input type="number" id="trNum" min="1" max="50" inputmode="numeric" value="' + (trSaved > 0 ? trSaved : '') + '"></span></div>' : '') +
     '<button type="button" class="primary" id="ok" disabled>אישור</button>' +
     '<p id="msg"></p>' +
     (MAP ? '<p class="mapbox"><span class="muted">מפת הגעה (לחיצה להגדלה)</span><a href="' + esc(MAP) + '"><img class="map" src="' + esc(MAP) + '" alt="מפת הגעה"></a></p>' : '');
@@ -113,23 +117,42 @@ function render(g) {
   }
   // הסעה (רק באירוע עם transport ב-config.js): נשאלת רק כשיש משתתפים, ונשמרת יחד עם הכמות
   const trBox = document.getElementById('trBox');
-  const trVal = () => { const r = app.querySelector('input[name="tr"]:checked'); return r ? r.value : ''; };
-  let savedTr = g.transport || '';
+  const trNum = document.getElementById('trNum'), trN = document.getElementById('trN');
+  const trYes = () => { const r = app.querySelector('input[name="tr"]:checked'); return !!r && r.value === 'כן'; };
+  // ערך ההסעה לשמירה: '' = לא נבחר, 0 = לא, מספר = כמות מקומות (NaN אם לא חוקי)
+  const trVal = () => {
+    const r = app.querySelector('input[name="tr"]:checked');
+    if (!r) return '';
+    if (r.value === 'לא') return 0;
+    return trNum.value === '' ? NaN : Number(trNum.value);
+  };
+  let savedTr = trSaved;
+  function syncTr(n) {
+    if (!trBox) return;
+    trBox.hidden = !(n > 0);
+    trN.hidden = !(n > 0 && trYes());
+    if (n > 0 && trYes()) {
+      trNum.max = n;
+      if (trNum.value === '' || Number(trNum.value) > n) trNum.value = n;
+    }
+  }
   function check() {
     const n = count.value === '' ? NaN : Number(count.value);
-    if (trBox) trBox.hidden = !(n > 0);
+    syncTr(n);
     if (PREVIEW) { ok.disabled = true; return; }
     const v = n;
     msg.className = '';
     if (!Number.isInteger(v) || v < 0 || v > 50) { msg.textContent = '⚠️ ערך לא חוקי'; msg.className = 'bad'; ok.disabled = true; return; }
-    if (trBox && v > 0 && !trVal()) { ok.disabled = true; msg.textContent = 'יש לבחור אם מעוניינים בהסעה'; return; }
+    if (trBox && v > 0 && trVal() === '') { ok.disabled = true; msg.textContent = 'יש לבחור אם מעוניינים בהסעה'; return; }
+    if (trBox && v > 0) { const t = trVal(); if (!Number.isInteger(t) || t < 0 || t > v || (trYes() && t < 1)) { ok.disabled = true; msg.textContent = '⚠️ מספר המקומות בהסעה לא חוקי'; msg.className = 'bad'; return; } }
     const tr = trBox && v > 0 ? trVal() : '';
     if (v === saved && (!trBox || tr === (saved === 0 ? '' : savedTr))) { ok.disabled = true; msg.textContent = trBox ? '🟰 הפרטים שנבחרו זהים לפרטים שכבר נשמרו' : '🟰 הכמות שנבחרה זהה לכמות שכבר נשמרה'; return; }
     ok.disabled = false; msg.textContent = '';
   }
   count.addEventListener('input', check);
   app.querySelectorAll('input[name="tr"]').forEach(r => r.addEventListener('change', check));
-  if (trBox) trBox.hidden = !(Number(count.value) > 0);
+  if (trNum) trNum.addEventListener('input', check);
+  syncTr(Number(count.value));
   document.getElementById('minus').onclick = () => { count.value = Math.max(0, (Number(count.value) || 0) - 1); check(); };
   document.getElementById('plus').onclick = () => { count.value = Math.min(50, (Number(count.value) || 0) + 1); check(); };
 
