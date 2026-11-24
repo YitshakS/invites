@@ -461,7 +461,7 @@
     if (c.type === 'time') return g[c.k] ? '<span dir="ltr">' + fmt(g[c.k]).replace(' ', '<span class="gap"></span>') + '</span>' : '<span class="muted">—</span>';
     if (c.type === 'count') return replied(g) ? String(g.count) : '<span class="muted">—</span>';
     if (c.type === 'phone') return '<span dir="ltr">' + esc(g.phone) + '</span>';
-    if (c.k === 'display' && !g.display) return '<span class="muted">' + esc(g.first) + '</span>';
+    if (c.k === 'display' && !g.display) return '<span style="color:#4a7fb5">' + esc(g.first) + '</span>';
     return g[c.k] === '' || g[c.k] == null ? '<span class="muted">—</span>' : esc(g[c.k]);
   }
 
