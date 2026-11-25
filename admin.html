@@ -52,6 +52,10 @@
     .clip { display: inline-block; max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
     @media (min-width: 700px) { .clip { max-width: 16em; } }
     td.cell:hover { background: #f3f7fb; }
+    .dh { cursor: grab; padding: 0 4px; margin-inline-end: 2px; color: var(--muted); font-weight: bold; touch-action: none; }
+    .pin { cursor: pointer; font-size: .75rem; margin-inline-end: 4px; opacity: .35; }
+    .pin.on { opacity: 1; }
+    .sortable-ghost { opacity: .4; }
     .gap { display: inline-block; width: 1.2em; }
     .muted { color: var(--muted); }
     .wa { background: #25d366; color: #fff; border: none; }
@@ -131,7 +135,7 @@
 
     <section id="tab-contacts">
       <div class="panel stats" id="stats"></div>
-      <div class="row" style="margin-bottom:8px"><button id="clearF">איפוס מיון ומסננים</button><span class="muted" id="shown"></span><span class="muted" id="tblHint" style="flex:1 1 auto;min-width:0;font-size:.74rem;line-height:1.3;white-space:nowrap"><span style="display:block">לחיצה על כותרת: מיון.</span><span style="display:block">הקלדה בשורה שמתחתיה: סינון.</span><span style="display:block">לחיצה על תא עם טקסט: עריכה.</span></span></div>
+      <div class="row" style="margin-bottom:8px"><button id="clearF">איפוס מיון ומסננים</button><button id="resetCols">איפוס סדר עמודות</button><span class="muted" id="shown"></span><span id="colMsg" style="color:var(--bad);font-size:.8rem"></span><span class="muted" id="tblHint" style="flex:1 1 auto;min-width:0;font-size:.74rem;line-height:1.3;white-space:nowrap"><span style="display:block">לחיצה על כותרת: מיון.</span><span style="display:block">הקלדה בשורה שמתחתיה: סינון.</span><span style="display:block">לחיצה על תא עם טקסט: עריכה.</span></span></div>
       <div class="tablebox"><table id="tbl"><thead></thead><tbody></tbody></table></div>
     </section>
 
@@ -211,6 +215,7 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <script src="common.js"></script>
 <script>
   const $ = s => document.querySelector(s);
@@ -219,8 +224,8 @@
   let sort = { k: 'display', asc: true }, filt = {};
   let settings = null; // נוסחים מהגיליון (null = האירוע מגדיר אותם ב-config.js)
 
-  const COLS = [
-    { k: 'display', t: 'שם בהזמנה', type: 'text', stick: true },
+  const COLS_ALL = [
+    { k: 'display', t: 'שם בהזמנה', type: 'text' },
     { k: 'last', t: 'שם משפחה', type: 'text' },
     { k: 'first', t: 'שם פרטי', type: 'text' },
     { k: '_view', t: 'צפיה בהזמנה', type: 'preview' },
@@ -234,6 +239,38 @@
     { k: 'note', t: 'הערות', type: 'text' },
     { k: '_del', t: 'מחיקה', type: 'delete' }
   ];
+
+  // ---------- סדר עמודות ונעיצה ----------
+  // נשמר בגיליון (הגדרות, B7) כ-JSON: o = מפתחות העמודות לפי הסדר, p = 0 כשהעמודה הראשונה לא נעוצה.
+  // עמודה שלא ברשימה (חדשה, או שנשארה במקומה) מופיעה אחרי הרשימה לפי סדר ברירת המחדל. מפתח לא מוכר נתעלם ממנו.
+  let COLS = COLS_ALL.slice(), colPrefs = { o: [], p: true };
+  const orderKeys = o => {
+    const keys = COLS_ALL.map(c => c.k), seen = new Set(), out = [];
+    (Array.isArray(o) ? o : []).forEach(k => { if (keys.includes(k) && !seen.has(k)) { seen.add(k); out.push(k); } });
+    return out.concat(keys.filter(k => !seen.has(k)));
+  };
+  function applyCols(raw) {
+    let p = null;
+    try { p = raw ? JSON.parse(raw) : null; } catch (e) {}
+    colPrefs = { o: p && Array.isArray(p.o) ? p.o : [], p: !(p && p.p === 0) };
+    COLS = orderKeys(colPrefs.o).map(k => COLS_ALL.find(c => c.k === k));
+  }
+  const isStick = i => i === 0 && colPrefs.p;
+  function saveCols(order) {
+    const full = orderKeys(order);
+    let o = full;
+    for (let n = 0; n <= full.length; n++) { // שומרים רק את הרישא שמספיקה לשחזור הסדר
+      if (orderKeys(full.slice(0, n)).join() === full.join()) { o = full.slice(0, n); break; }
+    }
+    colPrefs.o = o;
+    COLS = full.map(k => COLS_ALL.find(c => c.k === k));
+    const raw = !o.length && colPrefs.p ? '' : JSON.stringify(colPrefs.p ? { o } : { o, p: 0 });
+    $('#colMsg').textContent = '';
+    call('saveColumns', { columns: raw }).then(r => {
+      if (!r.ok) $('#colMsg').textContent = 'הסדר לא נשמר בגיליון (עדכנו את קוד השרת). הוא יישאר עד רענון.';
+    }).catch(() => { $('#colMsg').textContent = 'שמירת הסדר נכשלה.'; });
+    buildHead(); renderBody();
+  }
 
   async function call(action, data) {
     const r = await api(action, Object.assign({ token }, data));
@@ -251,6 +288,7 @@
       if (!r.ok) { showLogin('שגיאה בטעינה'); return; }
       guests = r.guests;
       settings = r.settings || null;
+      applyCols(settings && settings.columns);
       fillTextTab();
       $('#login').hidden = true; $('#main').hidden = false;
       buildHead();
@@ -382,13 +420,34 @@
     const cur = Object.assign({}, filt);
     const arrow = k => sort.k === k ? (sort.asc ? ' ▲' : ' ▼') : ' ↕';
     $('#tbl thead').innerHTML =
-      '<tr>' + COLS.map(c => {
-        if (c.type === 'delete' || c.type === 'preview') return '<th style="cursor:default">' + c.t + '</th>';
+      '<tr>' + COLS.map((c, i) => {
+        const st = isStick(i);
+        const grip = '<span class="dh" title="גרירה להזזת העמודה" aria-label="הזזת העמודה">⋮</span>';
+        const pin = i === 0 ? '<span class="pin' + (st ? ' on' : '') + '" role="button" title="' + (st ? 'ביטול נעיצת העמודה' : 'נעיצת העמודה') + '" aria-label="נעיצה">📌</span>' : '';
+        if (c.type === 'delete' || c.type === 'preview') return '<th class="' + (st ? 'stick' : '') + '" style="cursor:default">' + grip + pin + c.t + '</th>';
         const k = c.sk || c.k;
         const title = c.t + '<span class="muted" style="' + (sort.k === k ? '' : 'opacity:.45') + '">' + arrow(k) + '</span>';
-        return '<th class="' + (c.stick ? 'stick' : '') + '" data-s="' + k + '">' + (c.stick ? '<span class="hd">' + title + '</span>' : title) + '</th>';
+        return '<th class="' + (st ? 'stick' : '') + '" data-s="' + k + '" data-c="' + c.k + '">' + grip + pin + (st ? '<span class="hd">' + title + '</span>' : title) + '</th>';
       }).join('') + '</tr>' +
-      '<tr class="filters">' + COLS.map(c => '<th class="' + (c.stick ? 'stick' : '') + '">' + filterControl(c) + '</th>').join('') + '</tr>';
+      '<tr class="filters">' + COLS.map((c, i) => '<th class="' + (isStick(i) ? 'stick' : '') + '">' + filterControl(c) + '</th>').join('') + '</tr>';
+    document.querySelectorAll('#tbl .pin').forEach(el => el.onclick = e => {
+      e.stopPropagation();
+      colPrefs.p = !colPrefs.p;
+      saveCols(COLS.map(c => c.k));
+    });
+    document.querySelectorAll('#tbl .dh').forEach(el => el.onclick = e => e.stopPropagation());
+    if (window.Sortable) {
+      Sortable.create(document.querySelector('#tbl thead tr'), {
+        draggable: 'th', handle: '.dh', direction: 'horizontal', animation: 150,
+        forceFallback: true, scroll: document.querySelector('.tablebox'), scrollSensitivity: 60,
+        onEnd: ev => {
+          if (ev.oldIndex === ev.newIndex) return;
+          const order = COLS.map(c => c.k);
+          order.splice(ev.newIndex, 0, order.splice(ev.oldIndex, 1)[0]);
+          saveCols(order);
+        }
+      });
+    }
     document.querySelectorAll('#tbl [data-f]').forEach(el => {
       el.value = cur[el.dataset.f] || '';
       el.addEventListener('input', () => {
@@ -405,7 +464,8 @@
     });
   }
 
-  $('#clearF').onclick = () => { filt = {}; sort = { k: 'display', asc: true }; buildHead(); renderBody(); };
+  $('#resetCols').onclick = () => { colPrefs.p = true; saveCols(COLS_ALL.map(c => c.k)); };
+  $('#clearF').onclick =() => { filt = {}; sort = { k: 'display', asc: true }; buildHead(); renderBody(); };
 
   function passes(g) {
     for (const c of COLS) {
@@ -450,7 +510,7 @@
     body.innerHTML = '';
     list.forEach(g => {
       const tr = document.createElement('tr');
-      COLS.forEach(c => tr.append(cell(g, c)));
+      COLS.forEach((c, i) => tr.append(cell(g, c, i)));
       body.append(tr);
     });
     if (!list.length) body.innerHTML = '<tr><td colspan="' + COLS.length + '" class="muted" style="text-align:center">אין תוצאות</td></tr>';
@@ -465,9 +525,10 @@
     return g[c.k] === '' || g[c.k] == null ? '<span class="muted">—</span>' : esc(g[c.k]);
   }
 
-  function cell(g, c) {
+  function cell(g, c, i) {
     const td = document.createElement('td');
-    td.className = (c.stick ? 'stick ' : '') + (c.type === 'action' || c.type === 'delete' || c.type === 'preview' ? '' : 'cell');
+    const stick = isStick(i);
+    td.className = (stick ? 'stick ' : '') + (c.type === 'action' || c.type === 'delete' || c.type === 'preview' ? '' : 'cell');
     const svg = p => '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + p + '</svg>';
     if (c.type === 'delete') {
       td.style.textAlign = 'center';
@@ -487,7 +548,7 @@
       return td;
     }
     // בעמודה הצמודה: שם ארוך נחתך ב"…" (השם המלא בריחוף ובעריכה), כדי שלא יתפוס את המסך
-    td.innerHTML = c.stick ? '<span class="clip" title="' + esc(shownName(g)) + '">' + display(g, c) + '</span>' : display(g, c);
+    td.innerHTML = stick ? '<span class="clip" title="' + esc(shownName(g)) + '">' + display(g, c) + '</span>' : display(g, c);
     td.onclick = () => openEdit(g, c);
     return td;
   }
@@ -727,7 +788,8 @@
   loadEvent().then(() => {
     document.title = 'ניהול הזמנות - ' + (CONFIG.title || EVENT);
     // עמודת "הסעה" רק באירוע שמפעיל אותה (transport ב-config.js, ו-TRANSPORT בסקריפט)
-    if (CONFIG.transport) COLS.splice(COLS.findIndex(c => c.k === 'count') + 1, 0, { k: 'transport', t: 'מקומות בהסעה', type: 'text' });
+    if (CONFIG.transport) COLS_ALL.splice(COLS_ALL.findIndex(c => c.k === 'count') + 1, 0, { k: 'transport', t: 'מקומות בהסעה', type: 'text' });
+    applyCols('');
     try { token = localStorage.getItem(tokenKey()) || ''; } catch (e) {}
     if (!CONFIG.API_URL) token = 'demo';
     if (token) load().catch(() => {}); else showLogin('');

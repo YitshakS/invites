@@ -71,8 +71,9 @@ function doPost(e) {
     switch (d.action) {
       case 'list': {
         const t = readTemplates_();
-        return json_({ ok: true, guests: readAll_(), settings: { page: t.page, message: t.message, share: readShare_() } });
+        return json_({ ok: true, guests: readAll_(), settings: { page: t.page, message: t.message, share: readShare_(), columns: readColumns_() } });
       }
+      case 'saveColumns': return withLock_(() => { saveColumns_(String(d.columns || '').slice(0, 2000)); return json_({ ok: true }); });
       case 'saveSettings': return withLock_(() => {
         saveTemplates_(String(d.page || ''), String(d.message || ''));
         let build = 'none';
@@ -134,6 +135,17 @@ function saveShare_(title, description) {
   const sh = settings_();
   sh.getRange('A5:A6').setValues([['כותרת תצוגת הקישור בוואטסאפ'], ['תיאור תצוגת הקישור בוואטסאפ']]).setFontWeight('bold');
   sh.getRange('B5:B6').setNumberFormat('@').setValues([[title], [description]]).setWrap(true);
+}
+
+// B7 = סדר העמודות בלוח הניהול (JSON: מפתחות העמודות לפי הסדר, ונעיצת העמודה הראשונה). ריק = סדר ברירת המחדל. לא משפיע על עמודות הגיליון עצמו
+function readColumns_() {
+  return String(settings_().getRange('B7').getValue() || '');
+}
+
+function saveColumns_(value) {
+  const sh = settings_();
+  sh.getRange('A7').setValue('סדר העמודות בלוח הניהול (נוצר אוטומטית, למחוק את התא מאפס)').setFontWeight('bold');
+  sh.getRange('B7').setNumberFormat('@').setValue(value);
 }
 
 // מפעיל ב-GitHub את הבנייה של האתר (.github/workflows/pages.yml), כדי שתצוגת הקישור תתעדכן.

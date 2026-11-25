@@ -132,7 +132,8 @@ function mockApi(action, d) {
     if (!g) out = { ok: false, error: 'not_found' };
     else { g.viewed = new Date().toISOString(); out = { ok: true, display: g.display || g.first, first: g.first, last: g.last, form: g.form, count: g.count, pageTemplate: (JSON.parse(localStorage.getItem('mockSettings') || 'null') || {}).page }; }
   } else if (action === 'rsvp') { const g = find(d.id); if (g) g.count = Number(d.count); }
-  else if (action === 'list') out = { ok: true, guests: gs, settings: JSON.parse(localStorage.getItem('mockSettings') || 'null') || { page: DEFAULT_PAGE, message: '{שם בהזמנה} {היקר|היקרה|היקרים|היקרות},\nפרטים ואישור הגעה בקישור:\n{קישור}' } };
+  else if (action === 'list') out = { ok: true, guests: gs, settings: Object.assign({}, JSON.parse(localStorage.getItem('mockSettings') || 'null') || { page: DEFAULT_PAGE, message: '{שם בהזמנה} {היקר|היקרה|היקרים|היקרות},\nפרטים ואישור הגעה בקישור:\n{קישור}' }, { columns: localStorage.getItem('mockColumns') || '' }) };
+  else if (action === 'saveColumns') localStorage.setItem('mockColumns', String(d.columns || ''));
   else if (action === 'saveSettings') localStorage.setItem('mockSettings', JSON.stringify({ page: d.page, message: d.message }));
   else if (action === 'add') {
     (d.guests || []).forEach(x => gs.push({ id: 'demo' + Date.now() + Math.random().toString(36).slice(2, 5), first: x.first, last: x.last || '', display: x.display || '', form: x.form || 'יחיד', phone: x.phone, table: x.table || '', viewed: '', count: null, sent: '', note: x.note || '' }));
