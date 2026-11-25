@@ -13,7 +13,8 @@
     .tabs { display: flex; gap: 6px; margin-bottom: 10px; position: sticky; top: 0; background: var(--bg); padding: 6px 0; z-index: 6; }
     .tabs button { flex: 1; padding: .6em .4em; }
     .tabs button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .tabs #refresh { flex: 0 0 auto; }
+    /* כפתור הרענון: ריבוע בגובה שורת הלשוניות, עם האייקון במרכז */
+    .tabs #refresh { flex: 0 0 auto; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 1.3rem; line-height: 1; } /* הגובה נמתח עם שאר הכפתורים, והרוחב נקבע בקוד כך שיהיה ריבוע */
     /* חמש הכותרות תמיד בשורה אחת: הטקסט קטן עם רוחב המסך ואינו עובר שורה */
     .stats { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; text-align: center; font-size: clamp(.45rem, 2.3vw, .9rem); white-space: nowrap; padding-inline: 4px; }
     .stats > div { min-width: 0; }
@@ -89,14 +90,22 @@
     [hidden] { display: none !important; }
     .stage { margin-bottom: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
     button.act { padding: .55em 1.6em; }
+    /* כפתור משני בגוון הערכה: מובחן משדות הטקסט הלבנים */
+    button.tint { background: #eee7df; border-color: #d3c3b2; color: var(--accent-dark); font-weight: bold; }
+    button.tint { background: color-mix(in srgb, var(--accent) 14%, #fff); border-color: color-mix(in srgb, var(--accent) 38%, #fff); }
+    button.tint:hover { background: color-mix(in srgb, var(--accent) 24%, #fff); }
+    /* כשנעול: אותו גוון, חיוור יותר */
+    button.tint:disabled { background: #f6f2ee; border: 1px solid #e3d9ce; color: #b9a58f; cursor: default; }
+    button.tint:disabled { background: color-mix(in srgb, var(--accent) 6%, #fff); border-color: color-mix(in srgb, var(--accent) 20%, #fff); color: color-mix(in srgb, var(--accent) 42%, #fff); }
+    /* ניקוי הכל: מחיקה, באדום כמו אייקון המחיקה */
+    button.clr { color: var(--bad); }
+    button.clr:hover { background: #fde3e2; border-color: var(--bad); }
     .addcap { font-size: .9rem; }
     @media (max-width: 600px) { #tab-add button.act { padding: .55em .9em; } .addcap { flex-basis: 100%; } }
     #edTitle small.hint { display: block; font-size: .72rem; font-weight: normal; color: var(--muted); margin-top: 2px; }
     #boot { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
     #boot[hidden] { display: none; }
-    #boot p { margin: 0; font-weight: bold; color: var(--accent-dark); }    #contactsBtn { background: #dcebf8; border-color: #a9c9e6; color: var(--accent-dark); font-weight: bold; transition: background-color .3s; }
-    #contactsBtn:hover { background: #c6dff3; }
-    #err { color: var(--bad); font-size: .9rem; }
+    #boot p { margin: 0; font-weight: bold; color: var(--accent-dark); }    #err { color: var(--bad); font-size: .9rem; }
     .req { color: var(--bad); }
     #viewClose { position: absolute; top: 4px; left: 8px; z-index: 21; width: 28px; height: 28px; padding: 0; border-radius: 50%; border: none; background: rgba(0,0,0,.6); color: #fff; font-size: 1rem; line-height: 1; }
     #viewClose:hover { background: rgba(0,0,0,.8); }
@@ -155,18 +164,18 @@
     </nav>
 
     <section id="tab-contacts">
-      <div class="panel statbox">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><b style="font-size:.9rem">סיכום</b><button id="statsToggle" type="button" style="padding:.1em .8em;font-size:.8rem">הסתר</button></div>
-        <div id="statsBody" style="margin-top:6px">
-          <div class="stats" id="stats"></div>
-          <div class="stats" id="stats2" hidden></div>
-        </div>
-      </div>
       <div id="help" class="panel">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><b style="font-size:.9rem">הוראות</b><button id="helpToggle" type="button" style="padding:.1em .8em;font-size:.8rem">הסתר</button></div>
         <div id="helpBody">
           <div class="muted" id="tblHint" style="font-size:.76rem;line-height:1.4;text-align:start;margin-top:4px"><span style="display:block">📌 נעיצת/ביטול נעיצת העמודה הימנית בגלילה אופקית</span><span style="display:block">תיבת סינון: חיפוש תאים בעמודה המכילים את הטקסט שהוקלד</span><span style="display:block">↕ מיון (▲ עולה / ▼ יורד)</span><span style="display:block">⋮ גרירת עמודה (מאפשרת שינוי סדר העמודות)</span><span style="display:block">לחיצה על תא עם טקסט: עריכה</span><span style="display:block">כפתור שליחה: <b style="color:#c62828">אדום</b> = עדיין לא נשלחה הזמנה, <b style="color:#1d8a46">ירוק</b> = כבר נשלחה (לחיצה נוספת שולחת שוב)</span></div>
           <div id="sendNote" style="background:#e6f1fb;border:1px solid #bcd6ee;color:#1f4f7a;border-radius:10px;padding:6px 10px;margin-top:6px;font-size:.85rem;line-height:1.5">לאחר שליחת הזמנה חשוב לאשר שהיא נשלחה, כדי שצבע כפתור השליחה ישתנה ויראה לכם למי כבר שלחתם</div>
+        </div>
+      </div>
+      <div class="panel statbox">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><b style="font-size:.9rem">סיכום</b><button id="statsToggle" type="button" style="padding:.1em .8em;font-size:.8rem">הסתר</button></div>
+        <div id="statsBody" style="margin-top:6px">
+          <div class="stats" id="stats"></div>
+          <div class="stats" id="stats2" hidden></div>
         </div>
       </div>
       <div class="row" style="margin-bottom:8px"><button id="resetCols">איפוס סדר העמודות</button><button id="clearS">איפוס המיון</button><button id="clearF">ניקוי המסננים</button><span class="muted" id="shown"></span><span id="colMsg" style="color:var(--bad);font-size:.8rem"></span></div>
@@ -182,9 +191,9 @@
       </div>
       <div class="panel">
         <div id="stageList"></div>
-        <div class="row" style="margin-top:8px"><b class="addcap">הוספת אנשי קשר נוספים:</b><button class="act" id="manualBtn" type="button">הקלדה ידנית</button><button class="act" id="contactsBtn" hidden>בחירה מאנשי הקשר</button></div>
+        <div class="row" style="margin-top:8px"><b class="addcap">הוספת אנשי קשר נוספים:</b><button class="act tint" id="manualBtn" type="button">הקלדה ידנית</button><button class="act tint" id="contactsBtn" hidden>בחירה מאנשי הקשר</button></div>
       </div>
-      <div class="row" style="margin:0 0 10px"><button class="act" id="aCancel">ניקוי הכל</button><button class="primary act" id="aSave">שמירה</button><span id="aMsg" style="margin-inline-start:auto"></span></div>
+      <div class="row" style="margin:0 0 10px"><button class="act clr" id="aCancel">ניקוי הכל</button><button class="primary act" id="aSave">שמירה</button><span id="aMsg" style="margin-inline-start:auto"></span></div>
     </section>
 
     <section id="tab-shuttles" hidden>
@@ -612,6 +621,12 @@
   // הקישור בהודעת "אין אנשי קשר" פותח את לשונית ההוספה
   $('#clearLink').onclick = e => { e.preventDefault(); $('#clearF').click(); };
   $('#emptyAddLink').onclick = e => { e.preventDefault(); document.querySelector('[data-tab="add"]').click(); };
+  // כפתור הרענון תמיד ריבוע: הגובה נמתח עם הלשוניות (כשהן יורדות לכמה שורות), והרוחב נקבע להיות שווה לו
+  (function () {
+    const tab = document.querySelector('.tabs button:not(#refresh)'), r = $('#refresh');
+    const fit = () => { const h = Math.min(Math.round(tab.getBoundingClientRect().height), 96); if (h > 0) { r.style.flexBasis = h + 'px'; r.style.width = h + 'px'; } };
+    if (window.ResizeObserver) new ResizeObserver(fit).observe(tab); window.addEventListener('resize', fit); fit();
+  })();
   foldable('#helpToggle', '#helpBody', 'adminHelpHidden');
   foldable('#statsToggle', '#statsBody', 'adminStatsHidden');
   foldable('#addHelpToggle', '#addHelpBody', 'adminAddHelpHidden');
