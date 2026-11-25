@@ -165,12 +165,13 @@
       <div id="help" class="panel">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><b style="font-size:.9rem">הוראות</b><button id="helpToggle" type="button" style="padding:.1em .8em;font-size:.8rem">הסתר</button></div>
         <div id="helpBody">
-          <div class="muted" id="tblHint" style="font-size:.76rem;line-height:1.4;text-align:start;margin-top:4px"><span style="display:block">📌 נעיצת/ביטול נעיצת העמודה הימנית בגלילה אופקית</span><span style="display:block">תיבת סינון: חיפוש תאים בעמודה המכילים את הטקסט שהוקלד</span><span style="display:block">↕ מיון (▲ עולה / ▼ יורד)</span><span style="display:block">⋮ גרירת עמודה (מאפשרת שינוי סדר העמודות)</span><span style="display:block">לחיצה על תא עם טקסט: עריכה</span></div>
-          <div id="sendNote" style="background:#e6f1fb;border:1px solid #bcd6ee;color:#1f4f7a;border-radius:10px;padding:6px 10px;margin-top:6px;font-size:.85rem;line-height:1.5">לאחר שליחת הזמנה חשוב לאשר שהיא נשלחה כדי שכפתור השליחה יציג לכם למי כבר שלחתם</div>
+          <div class="muted" id="tblHint" style="font-size:.76rem;line-height:1.4;text-align:start;margin-top:4px"><span style="display:block">📌 נעיצת/ביטול נעיצת העמודה הימנית בגלילה אופקית</span><span style="display:block">תיבת סינון: חיפוש תאים בעמודה המכילים את הטקסט שהוקלד</span><span style="display:block">↕ מיון (▲ עולה / ▼ יורד)</span><span style="display:block">⋮ גרירת עמודה (מאפשרת שינוי סדר העמודות)</span><span style="display:block">לחיצה על תא עם טקסט: עריכה</span><span style="display:block">כפתור שליחה: <b style="color:#c62828">אדום</b> = עדיין לא נשלחה הזמנה, <b style="color:#1d8a46">ירוק</b> = כבר נשלחה (לחיצה נוספת שולחת שוב)</span></div>
+          <div id="sendNote" style="background:#e6f1fb;border:1px solid #bcd6ee;color:#1f4f7a;border-radius:10px;padding:6px 10px;margin-top:6px;font-size:.85rem;line-height:1.5">לאחר שליחת הזמנה חשוב לאשר שהיא נשלחה, כדי שצבע כפתור השליחה ישתנה ויראה לכם למי כבר שלחתם</div>
         </div>
       </div>
-      <div class="row" style="margin-bottom:8px"><button id="clearF">איפוס מיון ומסננים</button><button id="resetCols">איפוס סדר עמודות</button><span class="muted" id="shown"></span><span id="colMsg" style="color:var(--bad);font-size:.8rem"></span></div>
+      <div class="row" style="margin-bottom:8px"><button id="resetCols">איפוס סדר העמודות</button><button id="clearS">איפוס המיון</button><button id="clearF">ניקוי המסננים</button><span class="muted" id="shown"></span><span id="colMsg" style="color:var(--bad);font-size:.8rem"></span></div>
       <div id="emptyMsg" hidden style="background:#fff3d6;border:1px solid #f0d9a0;color:#8a5a00;border-radius:10px;padding:8px 10px;margin-bottom:8px;text-align:center;line-height:1.6">על מנת לשלוח הזמנות יש להזין אנשי קשר. לחצו על הכפתור <a href="#" id="emptyAddLink" style="color:inherit;text-decoration:underline">הוספת אנשי קשר</a> שבראש העמוד.</div>
+      <div id="noResults" class="muted" hidden style="text-align:center;margin:0 0 8px">אין תוצאות. <a href="#" id="clearLink">ניקוי המסננים</a></div>
       <div class="tablebox"><table id="tbl"><thead></thead><tbody></tbody></table></div>
     </section>
 
@@ -276,7 +277,9 @@
   const $ = s => document.querySelector(s);
   const FORMS = ['יחיד', 'יחידה', 'רבים', 'רבות'];
   let token = '', guests = [], pending = null;
-  let sort = { k: 'display', asc: true }, filt = {};
+  // ברירת המחדל: בלי מיון, כלומר לפי סדר השורות בגיליון (מי שהוכנס ראשון מופיע ראשון)
+  const NO_SORT = () => ({ k: null, asc: true });
+  let sort = NO_SORT(), filt = {};
   let settings = null; // נוסחים מהגיליון (null = האירוע מגדיר אותם ב-config.js)
 
   const COLS_BASE = [
@@ -531,7 +534,7 @@
   window.addEventListener('resize', syncTopScroll);
   function buildHead() {
     const cur = Object.assign({}, filt);
-    if (!COLS.some(c => (c.sk || c.k) === sort.k)) sort = { k: 'display', asc: true }; // הסעה שנמחקה או שונה שמה
+    if (sort.k && !COLS.some(c => (c.sk || c.k) === sort.k)) sort = NO_SORT(); // הסעה שנמחקה או שונה שמה
     $('#tbl thead').innerHTML =
       '<tr>' + COLS.map((c, i) => {
         const st = isStick(i);
@@ -607,12 +610,14 @@
     apply();
   }
   // הקישור בהודעת "אין אנשי קשר" פותח את לשונית ההוספה
+  $('#clearLink').onclick = e => { e.preventDefault(); $('#clearF').click(); };
   $('#emptyAddLink').onclick = e => { e.preventDefault(); document.querySelector('[data-tab="add"]').click(); };
   foldable('#helpToggle', '#helpBody', 'adminHelpHidden');
   foldable('#statsToggle', '#statsBody', 'adminStatsHidden');
   foldable('#addHelpToggle', '#addHelpBody', 'adminAddHelpHidden');
   $('#resetCols').onclick = () => { colPrefs.p = true; saveCols(COLS_ALL.map(c => c.k)); };
-  $('#clearF').onclick =() => { filt = {}; sort = { k: 'display', asc: true }; buildHead(); renderBody(); };
+  $('#clearF').onclick = () => { filt = {}; buildHead(); renderBody(); };
+  $('#clearS').onclick = () => { sort = NO_SORT(); buildHead(); renderBody(); };
 
   function passes(g) {
     for (const c of COLS) {
@@ -654,7 +659,8 @@
   }
 
   function renderBody() {
-    const list = guests.filter(passes).sort((a, b) => {
+    const list = guests.filter(passes);
+    if (sort.k) list.sort((a, b) => {
       const x = sortKey(a), y = sortKey(b), d = sort.asc ? 1 : -1;
       if (x === null) return y === null ? 0 : 1;
       if (y === null) return -1;
@@ -669,7 +675,7 @@
       body.append(tr);
     });
     $('#emptyMsg').hidden = guests.length > 0;
-    if (!list.length && guests.length) body.innerHTML = '<tr><td colspan="' + COLS.length + '" class="muted" style="text-align:center">אין תוצאות</td></tr>';
+    $('#noResults').hidden = !(list.length === 0 && guests.length > 0);
     syncTopScroll();
   }
 
@@ -969,7 +975,7 @@
   };
 
   // שמירה: התקינים נשמרים ונעלמים מהטופס, ובטופס נשארים רק הנדחים, כל אחד עם הסיבה לדחייה
-  $('#aMsg').addEventListener('click', e => { if (e.target.id === 'goSend') { e.preventDefault(); document.querySelector('[data-tab="contacts"]').click(); } });
+  $('#aMsg').addEventListener('click', e => { if (e.target.id === 'goSend') { e.preventDefault(); document.querySelector('[data-tab="contacts"]').click(); const tb = document.querySelector('.tablebox'); fitTable(); tb.scrollTop = tb.scrollHeight; } });
 
   $('#aSave').onclick = async () => {
     $('#aMsg').innerHTML = '';
