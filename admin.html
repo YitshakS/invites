@@ -502,7 +502,7 @@
     if ($('#tab-contacts').hidden) return;
     const y = tb.getBoundingClientRect().top + window.scrollY;
     const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    tb.style.maxHeight = Math.max(vh < 520 ? 150 : 320, vh - y - 16) + 'px';
+    tb.style.maxHeight = Math.max(vh < 520 ? 60 : 320, vh - y - 16) + 'px';
   }
   if (window.visualViewport) window.visualViewport.addEventListener('resize', fitTable);
   window.addEventListener('resize', syncTopScroll);
