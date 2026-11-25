@@ -49,14 +49,14 @@
     thead th { position: sticky; top: 0; z-index: 3; background: #f3f7fb; cursor: default; user-select: none; }
     thead tr.filters th { cursor: default; padding: 4px; z-index: 3; }
     thead tr.filters input, thead tr.filters select { width: 100%; min-width: 80px; padding: .25em .4em; font-size: .85rem; }
-    th.stick, td.stick { position: sticky; inset-inline-start: 0; z-index: 2; border-inline-end: 2px solid var(--line); min-width: 6.2em; } /* מינימום רוחב: בטבלה ריקה אין שם ארוך שקובע את הרוחב, והכותרת הייתה גולשת על העמודה שלידה */
+    th.stick, td.stick { position: sticky; inset-inline-start: 0; z-index: 2; box-shadow: inset 2px 0 0 var(--line); min-width: 6.2em; } /* מינימום רוחב: בטבלה ריקה אין שם ארוך שקובע את הרוחב, והכותרת הייתה גולשת על העמודה שלידה */
     thead th.stick, thead tr.filters th.stick { z-index: 5; }
     td.cell { cursor: pointer; min-width: 70px; }
     /* העמודה הצמודה: הרוחב נקבע לפי השם הארוך ביותר או לפי הכותרת (שורה אחת). הסינון לא מרחיב אותה */
     .hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; white-space: nowrap; }
     .ic { display: inline-flex; align-items: center; gap: 6px; }
     .sa { cursor: pointer; color: var(--muted); padding: 8px 5px; margin: -8px 0; }
-    thead tr.filters th.stick input { width: 0; min-width: 100%; }
+    thead tr.filters th:first-child input, thead tr.filters th:first-child select { width: 0; min-width: 100%; } /* העמודה הראשונה, נעוצה או לא: הסינון לא קובע את רוחבה, כדי שהנעיצה לא תשנה אותו */
     .clip { display: inline-block; max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
     @media (min-width: 700px) { .clip { max-width: 16em; } }
     td.cell:hover { background: #f3f7fb; }
@@ -661,7 +661,7 @@
       return td;
     }
     // בעמודה הצמודה: שם ארוך נחתך ב"…" (השם המלא בריחוף ובעריכה), כדי שלא יתפוס את המסך
-    td.innerHTML = stick ? '<span class="clip" title="' + esc(shownName(g)) + '">' + display(g, c) + '</span>' : display(g, c);
+    td.innerHTML = i === 0 ? '<span class="clip" title="' + esc(shownName(g)) + '">' + display(g, c) + '</span>' : display(g, c);
     td.onclick = () => openEdit(g, c);
     return td;
   }
