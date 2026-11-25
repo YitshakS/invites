@@ -495,14 +495,13 @@
     fixStickyTop(); // גובה הכותרת תלוי ברוחב העמודות, שנקבע רק אחרי מילוי השורות
     fitTable();
   }
-  // גובה הטבלה ממלא את המסך שנשאר (לפי החלק הנראה בפועל, כולל מקלדת וסרגל כתובות), עם מינימום של 320 פיקסלים.
-  // במסך נמוך (למשל טלפון לרוחב) המינימום קטן, כדי שהגלילה האופקית התחתונה תישאר בתוך המסך
+  // גובה הטבלה ממלא את המסך שנשאר (לפי החלק הנראה בפועל, כולל מקלדת וסרגל כתובות), בלי גובה מינימלי, כדי שהדף לא יחרוג מהמסך
   function fitTable() {
     const tb = document.querySelector('.tablebox');
     if ($('#tab-contacts').hidden) return;
     const y = tb.getBoundingClientRect().top + window.scrollY;
     const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    tb.style.maxHeight = Math.max(vh < 520 ? 60 : 320, vh - y - 16) + 'px';
+    tb.style.maxHeight = Math.max(0, vh - y - 16) + 'px';
   }
   if (window.visualViewport) window.visualViewport.addEventListener('resize', fitTable);
   window.addEventListener('resize', syncTopScroll);
