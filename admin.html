@@ -102,10 +102,13 @@
     button.clr:hover { background: #fde3e2; border-color: var(--bad); }
     .addcap { font-size: .9rem; }
     /* כפתורי האיפוס והניקוי בטלפון: קטנים יותר כדי שיישבו בשורה אחת */
-    @media (max-width: 600px) { button.mini { padding: .75em .25em; font-size: .95rem; flex: 1 1 auto; } }
-    @media (min-width: 385px) and (max-width: 600px) { button.mini { padding: .9em .3em; font-size: 1rem; } } /* טלפון רחב יותר: כפתורים גדולים יותר */
-    @media (min-width: 400px) and (max-width: 600px) { button.mini { font-size: 1.05rem; } }
-    @media (min-width: 425px) and (max-width: 600px) { button.mini { font-size: 1.1rem; } }
+    /* טלפון אנכי: שלושת כפתורי האיפוס והניקוי תופסים יחד את כל רוחב המסך בשלוש עמודות שוות. בתצוגה אופקית נשארים בגודל הרגיל */
+    @media (max-width: 600px) and (orientation: portrait) {
+      .ctlrow { display: grid; grid-template-columns: repeat(3, 1fr); align-items: stretch; }
+      .ctlrow > span { grid-column: 1 / -1; }
+      .ctlrow > span:empty { display: none; }
+      button.mini { padding: .6em .3em; font-size: 1.05rem; line-height: 1.2; }
+    }
     @media (max-width: 600px) { #tab-add button.act { padding: .55em .9em; } .addcap { flex-basis: 100%; } }
     #edTitle small.hint { display: block; font-size: .72rem; font-weight: normal; color: var(--muted); margin-top: 2px; }
     #boot { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
@@ -183,7 +186,7 @@
           <div class="stats" id="stats2" hidden></div>
         </div>
       </div>
-      <div class="row" style="margin-bottom:8px"><button class="mini" id="resetCols">איפוס סדר העמודות</button><button class="mini" id="clearS">איפוס המיון</button><button class="mini" id="clearF">ניקוי המסננים</button><span class="muted" id="shown"></span><span id="colMsg" style="color:var(--bad);font-size:.8rem"></span></div>
+      <div class="row ctlrow" style="margin-bottom:8px"><button class="mini" id="resetCols">איפוס סדר העמודות</button><button class="mini" id="clearS">איפוס המיון</button><button class="mini" id="clearF">ניקוי המסננים</button><span class="muted" id="shown"></span><span id="colMsg" style="color:var(--bad);font-size:.8rem"></span></div>
       <div id="emptyMsg" hidden style="background:#fff3d6;border:1px solid #f0d9a0;color:#8a5a00;border-radius:10px;padding:8px 10px;margin-bottom:8px;text-align:center;line-height:1.6">על מנת לשלוח הזמנות יש להזין אנשי קשר. לחצו על הכפתור <a href="#" id="emptyAddLink" style="color:inherit;text-decoration:underline">הוספת אנשי קשר</a> שבראש העמוד.</div>
       <div id="noResults" class="muted" hidden style="text-align:center;margin:0 0 8px">אין תוצאות. <a href="#" id="clearLink">ניקוי המסננים</a></div>
       <div class="tablebox"><table id="tbl"><thead></thead><tbody></tbody></table></div>
