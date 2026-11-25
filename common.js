@@ -127,12 +127,45 @@ function mockApi(action, d) {
   const save = () => localStorage.setItem(key, JSON.stringify(gs));
   const find = id => gs.find(g => g.id === id);
   let out = { ok: true };
+  // הסעות (דמו): הרשימה נשמרת ב-localStorage, והערכים של כל מוזמן ב-g.shuttles
+  const defs = JSON.parse(localStorage.getItem('mockShuttles') || '[]');
+  gs.forEach(g => { g.shuttles = g.shuttles || {}; defs.forEach(s => { if (!(s.name in g.shuttles)) g.shuttles[s.name] = ''; }); });
+  const used = (name, exceptId) => gs.reduce((t, x) => t + (x.id !== exceptId && x.count > 0 && Number(x.shuttles[name]) > 0 ? Number(x.shuttles[name]) : 0), 0);
+  const view = g => ({
+    ok: true, display: g.display || g.first, first: g.first, last: g.last, form: g.form, count: g.count,
+    pageTemplate: (JSON.parse(localStorage.getItem('mockSettings') || 'null') || {}).page,
+    shuttles: defs.map(s => ({ name: s.name, left: s.cap ? Math.max(0, s.cap - used(s.name, g.id)) : null })), mine: g.shuttles
+  });
   if (action === 'get') {
     const g = find(d.id);
     if (!g) out = { ok: false, error: 'not_found' };
-    else { g.viewed = new Date().toISOString(); out = { ok: true, display: g.display || g.first, first: g.first, last: g.last, form: g.form, count: g.count, pageTemplate: (JSON.parse(localStorage.getItem('mockSettings') || 'null') || {}).page }; }
-  } else if (action === 'rsvp') { const g = find(d.id); if (g) g.count = Number(d.count); }
-  else if (action === 'list') out = { ok: true, guests: gs, settings: Object.assign({}, JSON.parse(localStorage.getItem('mockSettings') || 'null') || { page: DEFAULT_PAGE, message: '{שם בהזמנה} {היקר|היקרה|היקרים|היקרות},\nפרטים ואישור הגעה בקישור:\n{קישור}' }, { columns: localStorage.getItem('mockColumns') || '' }) };
+    else { g.viewed = new Date().toISOString(); out = view(g); }
+  } else if (action === 'rsvp') {
+    const g = find(d.id);
+    if (g) {
+      const c = Number(d.count);
+      if (c === 0) defs.forEach(s => { g.shuttles[s.name] = g.shuttles[s.name] === '' ? '' : 0; });
+      else if (d.shuttles) {
+        const bad = defs.find(s => { const v = Number(d.shuttles[s.name] || 0); return !Number.isInteger(v) || v < 0 || v > c; });
+        const full = defs.find(s => Number(d.shuttles[s.name] || 0) > 0 && s.cap && used(s.name, g.id) + Number(d.shuttles[s.name]) > s.cap);
+        if (bad) out = { ok: false, error: 'bad_shuttle' };
+        else if (full) out = { ok: false, error: 'shuttle_full' };
+        else defs.forEach(s => { g.shuttles[s.name] = Number(d.shuttles[s.name] || 0); });
+      }
+      if (out.ok) g.count = c;
+    }
+  }
+  else if (action === 'saveShuttles') {
+    const list = (d.shuttles || []).map(s => ({ name: String(s.name || '').trim(), cap: Number(s.cap) > 0 ? Number(s.cap) : 0, prev: s.prev || '' }));
+    const names = list.map(s => s.name);
+    if (names.some(n => !n) || new Set(names).size !== names.length) out = { ok: false, error: 'bad_name' };
+    else {
+      list.forEach(s => { if (s.prev && s.prev !== s.name) gs.forEach(g => { if (s.prev in g.shuttles) { g.shuttles[s.name] = g.shuttles[s.prev]; delete g.shuttles[s.prev]; } }); });
+      localStorage.setItem('mockShuttles', JSON.stringify(list.map(s => ({ name: s.name, cap: s.cap || null }))));
+      out = { ok: true };
+    }
+  }
+  else if (action === 'list') out = { ok: true, guests: gs, settings: Object.assign({}, JSON.parse(localStorage.getItem('mockSettings') || 'null') || { page: DEFAULT_PAGE, message: '{שם בהזמנה} {היקר|היקרה|היקרים|היקרות},\nפרטים ואישור הגעה בקישור:\n{קישור}' }, { columns: localStorage.getItem('mockColumns') || '', shuttles: defs }) };
   else if (action === 'saveColumns') localStorage.setItem('mockColumns', String(d.columns || ''));
   else if (action === 'saveSettings') localStorage.setItem('mockSettings', JSON.stringify({ page: d.page, message: d.message }));
   else if (action === 'add') {
@@ -141,13 +174,16 @@ function mockApi(action, d) {
   } else if (action === 'setSent') { const g = find(d.id); if (g) g.sent = d.sent ? new Date().toISOString() : ''; }
   else if (action === 'preview') {
     const g = find(d.id);
-    out = g ? { ok: true, display: g.display || g.first, first: g.first, last: g.last, form: g.form, count: g.count, pageTemplate: (JSON.parse(localStorage.getItem('mockSettings') || 'null') || {}).page } : { ok: false, error: 'not_found' };
+    out = g ? view(g) : { ok: false, error: 'not_found' };
   }
   else if (action === 'delete') {
     const i = gs.findIndex(g => g.id === (d.guest || {}).id);
     if (i < 0) out = { ok: false, error: 'not_found' }; else gs.splice(i, 1);
   }
-  else if (action === 'update') { const g = find(d.id); if (g) Object.assign(g, d.fields); }
+  else if (action === 'update') {
+    const g = find(d.id);
+    if (g) { const f = Object.assign({}, d.fields); if (f.shuttles) { Object.assign(g.shuttles, f.shuttles); delete f.shuttles; } Object.assign(g, f); }
+  }
   save();
   return Promise.resolve(out);
 }

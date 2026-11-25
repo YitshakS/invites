@@ -3,16 +3,17 @@
 // כל אירוע = גיליון משלו + פרויקט Apps Script משלו (עותק של הקובץ הזה) + סיסמה משלו.
 
 const SHEET_NAME = 'הזמנות';
-const TRANSPORT = false; // true רק באירוע עם הסעה: מוסיף עמודה "הסעה" (מספר המקומות שהמוזמן ביקש; 0 = לא מעוניין, ריק = לא ענה) שהמוזמן ממלא בדף. חייב להתאים ל-transport ב-config.js של האירוע
-const HEADERS = ['שולחן', 'שם פרטי', 'שם משפחה', 'שם בהזמנה', 'נוסח הפניה', 'מספר טלפון נייד', 'מזהה', 'ההזמנה נצפתה לאחרונה', 'כמות משתתפים', 'ההזמנה נשלחה לאחרונה', 'הערות'].concat(TRANSPORT ? ['הסעה'] : []);
-const COL = { TABLE: 1, FIRST: 2, LAST: 3, DISPLAY: 4, FORM: 5, PHONE: 6, ID: 7, VIEWED: 8, COUNT: 9, SENT: 10, NOTE: 11, TRANSPORT: 12 };
+// עמודות ההסעה (אם הוגדרו הסעות בלוח הניהול) נוספות אחרי העמודות הקבועות: עמודה לכל הסעה, הכותרת היא שם ההסעה והתא הוא מספר הנוסעים
+// (0 = לא מעוניין, ריק = לא ענה). אסור להזיז או לשנות את כותרות העמודות הקבועות, ואת כותרות ההסעות משנים רק דרך לוח הניהול.
+const HEADERS = ['שולחן', 'שם פרטי', 'שם משפחה', 'שם בהזמנה', 'נוסח הפניה', 'מספר טלפון נייד', 'מזהה', 'ההזמנה נצפתה לאחרונה', 'כמות משתתפים', 'ההזמנה נשלחה לאחרונה', 'הערות'];
+const COL = { TABLE: 1, FIRST: 2, LAST: 3, DISPLAY: 4, FORM: 5, PHONE: 6, ID: 7, VIEWED: 8, COUNT: 9, SENT: 10, NOTE: 11 };
+const MAX_SHUTTLES = 12;
 const SETTINGS_SHEET = 'הגדרות';
 const MAX_FAILS = 5;
 const LOCK_MINUTES = 15;
 const DT_FORMAT = 'dd/mm/yyyy hh:mm:ss'; // תאריך ושעה (עם דקות ושניות) בעמודות הצפיה והשליחה
 const FORMS = ['יחיד', 'יחידה', 'רבים', 'רבות'];
 const EDITABLE = { table: COL.TABLE, first: COL.FIRST, last: COL.LAST, display: COL.DISPLAY, form: COL.FORM, note: COL.NOTE };
-if (TRANSPORT) EDITABLE.transport = COL.TRANSPORT;
 
 // נוסחי ברירת מחדל. מילים שמורות: {שם בהזמנה} {שם פרטי} {שם משפחה}, ובוואטסאפ גם {קישור}. {א|ב|ג|ד} = ארבע צורות לפי נוסח הפניה
 const DEFAULT_PAGE = '**{שם בהזמנה} {היקר|היקרה|היקרים|היקרות}**\nבשבח והודיה לה\' יתברך\nאנו שמחים ונרגשים {להודיעך|להודיעך|להודיעכם|להודיעכן}\nעל שמחת האירוע שלנו\n\nשתתקיים בעז"ה\n*תאריך האירוע\nשעת האירוע\nמקום האירוע*';
@@ -54,11 +55,25 @@ function doGet(e) {
   const id = String((e.parameter && e.parameter.id) || '').trim();
   if (!id) return json_({ ok: true });
   return withLock_(() => {
-    const g = find_(id);
+    const all = readAll_(), g = all.find(x => x.id === id);
     if (!g) return json_({ ok: false, error: 'not_found' });
     sheet_().getRange(g.row, COL.VIEWED).setNumberFormat(DT_FORMAT).setValue(new Date());
-    return json_({ ok: true, display: g.display || g.first, first: g.first, last: g.last, form: g.form, count: g.count, transport: g.transport, pageTemplate: readTemplates_().page });
+    return json_(guestView_(g, all));
   });
+}
+
+// מה שדף ההזמנה מקבל: פרטי המוזמן, ההסעות (שם, ומספר המקומות שנותרו בלי המקומות של המוזמן עצמו, null = בלי הגבלה) ובחירת המוזמן
+function guestView_(g, all) {
+  const defs = readShuttles_();
+  return {
+    ok: true, display: g.display || g.first, first: g.first, last: g.last, form: g.form, count: g.count, pageTemplate: readTemplates_().page,
+    shuttles: defs.map(s => ({ name: s.name, left: s.cap ? Math.max(0, s.cap - shuttleUsed_(all, s.name, g.id)) : null })),
+    mine: g.shuttles
+  };
+}
+
+function shuttleUsed_(all, name, exceptId) {
+  return all.reduce((sum, x) => sum + (x.id !== exceptId && x.count > 0 && Number(x.shuttles[name]) > 0 ? Number(x.shuttles[name]) : 0), 0);
 }
 
 function doPost(e) {
@@ -71,9 +86,10 @@ function doPost(e) {
     switch (d.action) {
       case 'list': {
         const t = readTemplates_();
-        return json_({ ok: true, guests: readAll_(), settings: { page: t.page, message: t.message, share: readShare_(), columns: readColumns_() } });
+        return json_({ ok: true, guests: readAll_(), settings: { page: t.page, message: t.message, share: readShare_(), columns: readColumns_(), shuttles: readShuttles_() } });
       }
       case 'saveColumns': return withLock_(() => { saveColumns_(String(d.columns || '').slice(0, 2000)); return json_({ ok: true }); });
+      case 'saveShuttles': return withLock_(() => saveShuttles_(d.shuttles));
       case 'saveSettings': return withLock_(() => {
         saveTemplates_(String(d.page || ''), String(d.message || ''));
         let build = 'none';
@@ -89,8 +105,8 @@ function doPost(e) {
       case 'update': return withLock_(() => update_(d));
       case 'delete': return withLock_(() => delete_(d));
       case 'preview': {
-        const g = find_(String(d.id || '').trim()); // קריאה בלבד: לא נרשמת צפיה
-        return g ? json_({ ok: true, display: g.display || g.first, first: g.first, last: g.last, form: g.form, count: g.count, transport: g.transport, pageTemplate: readTemplates_().page }) : json_({ ok: false, error: 'not_found' });
+        const all = readAll_(), g = all.find(x => x.id === String(d.id || '').trim()); // קריאה בלבד: לא נרשמת צפיה
+        return g ? json_(guestView_(g, all)) : json_({ ok: false, error: 'not_found' });
       }
       default: return json_({ ok: false, error: 'bad_action' });
     }
@@ -190,15 +206,83 @@ function rsvp_(d) {
   if (!Number.isInteger(count) || count < 0 || count > 50) return json_({ ok: false, error: 'bad_count' });
   const g = find_(String(d.id || '').trim());
   if (!g) return json_({ ok: false, error: 'not_found' });
-  sheet_().getRange(g.row, COL.COUNT).setValue(count);
-  if (TRANSPORT && 'transport' in d) {
-    // הסעה: מספר המקומות (0 = לא מעוניין), ריק = לא ענה. כשהכמות הכללית 0, מי שענה קודם נשאר עם 0 (אינדיקציה לביטול)
-    const tr = d.transport === '' ? '' : Number(d.transport);
-    if (tr !== '' && (!Number.isInteger(tr) || tr < 0 || tr > count)) return json_({ ok: false, error: 'bad_transport' });
-    const prev = g.transport === '' || g.transport == null ? '' : Number(g.transport);
-    sheet_().getRange(g.row, COL.TRANSPORT).setValue(count === 0 ? (prev === '' ? '' : 0) : tr);
+  const defs = readShuttles_();
+  const writes = []; // [שם הסעה, ערך]
+  if (defs.length) {
+    // הסעות: מספר הנוסעים בכל הסעה (0 = לא מעוניין), ריק = לא ענה. כשהכמות הכללית 0, מי שענה קודם נשאר עם 0 (אינדיקציה לביטול)
+    if (count === 0) {
+      defs.forEach(s => writes.push([s.name, g.shuttles[s.name] === '' || g.shuttles[s.name] == null ? '' : 0]));
+    } else if (d.shuttles && typeof d.shuttles === 'object') {
+      const all = readAll_();
+      for (const s of defs) {
+        const v = Number(d.shuttles[s.name] || 0);
+        if (!Number.isInteger(v) || v < 0 || v > count) return json_({ ok: false, error: 'bad_shuttle' });
+        if (v > 0 && s.cap && shuttleUsed_(all, s.name, g.id) + v > s.cap) return json_({ ok: false, error: 'shuttle_full', shuttle: s.name });
+        writes.push([s.name, v]);
+      }
+    }
   }
+  sheet_().getRange(g.row, COL.COUNT).setValue(count);
+  writeShuttles_(g.row, writes);
   return json_({ ok: true });
+}
+
+// ---------- הסעות ----------
+// לשונית "הגדרות": B8 = רשימת ההסעות (JSON: [{name, cap}]), cap = מספר מקומות מרבי (ריק = בלי הגבלה). מנוהלת בלוח הניהול.
+function readShuttles_() {
+  let list = [];
+  try { list = JSON.parse(String(settings_().getRange('B8').getValue() || '[]')); } catch (e) {}
+  return (Array.isArray(list) ? list : []).map(s => ({ name: String((s && s.name) || '').trim(), cap: Number(s && s.cap) > 0 ? Math.floor(Number(s.cap)) : 0 })).filter(s => s.name);
+}
+
+// מיקום עמודות ההסעה בגיליון לפי הכותרת (רק אחרי העמודות הקבועות). הסעה שאין לה עמודה עדיין, לא מופיעה במפה
+function shuttleCols_(defs) {
+  const sh = sheet_(), lc = sh.getLastColumn(), map = {};
+  const hdr = lc > COL.NOTE ? sh.getRange(1, COL.NOTE + 1, 1, lc - COL.NOTE).getValues()[0] : [];
+  defs.forEach(s => { const i = hdr.findIndex(h => String(h).trim() === s.name); if (i >= 0) map[s.name] = COL.NOTE + 1 + i; });
+  return map;
+}
+
+// יוצר בסוף הגיליון עמודה לכל הסעה שחסרה, ומחזיר את המפה המלאה
+function ensureShuttleCols_(defs) {
+  const sh = sheet_();
+  const map = shuttleCols_(defs);
+  defs.forEach(s => {
+    if (map[s.name]) return;
+    const col = Math.max(sh.getLastColumn(), COL.NOTE) + 1;
+    sh.getRange(1, col).setValue(s.name).setFontWeight('bold');
+    map[s.name] = col;
+  });
+  return map;
+}
+
+function writeShuttles_(row, writes) {
+  if (!writes.length) return;
+  const map = ensureShuttleCols_(readShuttles_());
+  writes.forEach(w => { if (map[w[0]]) sheet_().getRange(row, map[w[0]]).setValue(w[1]); });
+}
+
+// שמירת רשימת ההסעות מלוח הניהול. כל פריט: {name, cap, prev}. prev = השם הקודם (שינוי שם משנה גם את הכותרת בגיליון).
+// הסעה שהוסרה מהרשימה לא נמחקת מהגיליון: העמודה והנתונים נשארים, והיא פשוט לא מוצגת. הוספה מחדש באותו שם מחברת אותה בחזרה.
+function saveShuttles_(raw) {
+  if (!Array.isArray(raw) || raw.length > MAX_SHUTTLES) return json_({ ok: false, error: 'bad_shuttles' });
+  const list = raw.map(s => ({ name: String((s && s.name) || '').trim().slice(0, 40), cap: Number(s && s.cap) > 0 ? Math.floor(Number(s.cap)) : 0, prev: String((s && s.prev) || '').trim() }));
+  const names = list.map(s => s.name);
+  if (names.some(n => !n || HEADERS.indexOf(n) >= 0) || new Set(names).size !== names.length) return json_({ ok: false, error: 'bad_name' });
+  const sh = sheet_();
+  const old = readShuttles_();
+  const cols = shuttleCols_(old.concat(list.filter(s => s.prev).map(s => ({ name: s.prev }))));
+  const taken = shuttleCols_(list); // עמודות שכבר נושאות את השם החדש
+  for (const s of list) {
+    if (s.prev && s.prev !== s.name && cols[s.prev]) {
+      if (taken[s.name]) return json_({ ok: false, error: 'name_exists', shuttle: s.name });
+      sh.getRange(1, cols[s.prev]).setValue(s.name);
+    }
+  }
+  settings_().getRange('A8').setValue('הסעות (נוצר אוטומטית מלוח הניהול)').setFontWeight('bold');
+  settings_().getRange('B8').setNumberFormat('@').setValue(JSON.stringify(list.map(s => ({ name: s.name, cap: s.cap || null }))));
+  ensureShuttleCols_(readShuttles_());
+  return json_({ ok: true, shuttles: readShuttles_() });
 }
 
 function add_(list) {
@@ -214,7 +298,7 @@ function add_(list) {
     if (existing.has(id)) { duplicates.push(first); return; }
     existing.add(id);
     const form = FORMS.indexOf(x.form) >= 0 ? x.form : 'יחיד';
-    rows.push([x.table || '', first, x.last || '', x.display || '', form, formatPhone_(phone), id, '', '', '', x.note || ''].concat(TRANSPORT ? [''] : []));
+    rows.push([x.table || '', first, x.last || '', x.display || '', form, formatPhone_(phone), id, '', '', '', x.note || '']);
   });
   if (rows.length) {
     const start = sh.getLastRow() + 1;
@@ -241,6 +325,17 @@ function update_(d) {
     if (c !== '' && (!Number.isInteger(c) || c < 0 || c > 50)) return json_({ ok: false, error: 'bad_count' });
     sh.getRange(g.row, COL.COUNT).setValue(c);
   }
+  if (f.shuttles && typeof f.shuttles === 'object') {
+    // עריכה מלוח הניהול: מספר נוסעים בהסעה (ריק = לא ענה). בלי בדיקת קיבולת, כי המנהל רשאי
+    const defs = readShuttles_(), writes = [];
+    for (const name of Object.keys(f.shuttles)) {
+      if (!defs.some(s => s.name === name)) return json_({ ok: false, error: 'bad_shuttle' });
+      const v = f.shuttles[name] === null || f.shuttles[name] === '' ? '' : Number(f.shuttles[name]);
+      if (v !== '' && (!Number.isInteger(v) || v < 0 || v > 50)) return json_({ ok: false, error: 'bad_shuttle' });
+      writes.push([name, v]);
+    }
+    writeShuttles_(g.row, writes);
+  }
   if ('viewed' in f) sh.getRange(g.row, COL.VIEWED).setNumberFormat(DT_FORMAT).setValue(f.viewed ? new Date(f.viewed) : '');
   if ('sent' in f) sh.getRange(g.row, COL.SENT).setNumberFormat(DT_FORMAT).setValue(f.sent ? new Date(f.sent) : '');
   let id = g.id;
@@ -259,7 +354,7 @@ function sig_(g) {
   const s = v => (v ? Math.floor(new Date(v).getTime() / 1000) : '');
   const t = v => String(v == null ? '' : v).trim();
   return JSON.stringify([t(g.table), t(g.first), t(g.last), t(g.display), t(g.form), t(g.phone), t(g.id), s(g.viewed),
-    g.count === null || g.count === '' || g.count === undefined ? '' : Number(g.count), s(g.sent), t(g.note)].concat(TRANSPORT ? [t(g.transport)] : []));
+    g.count === null || g.count === '' || g.count === undefined ? '' : Number(g.count), s(g.sent), t(g.note), JSON.stringify(Object.keys(g.shuttles || {}).sort().map(k => [k, t(g.shuttles[k])]))]);
 }
 
 function delete_(d) {
@@ -307,10 +402,16 @@ function readAll_() {
   const n = sh.getLastRow() - 1;
   if (n < 1) return [];
   const iso = v => (v instanceof Date ? v.toISOString() : '');
-  return sh.getRange(2, 1, n, HEADERS.length).getValues().map((r, i) => ({
-    row: i + 2, table: r[0], first: r[1], last: r[2], display: r[3], form: r[4], phone: String(r[5]),
-    id: String(r[6]), viewed: iso(r[7]), count: r[8] === '' ? null : Number(r[8]), sent: iso(r[9]), note: r[10], transport: r[11] === '' || r[11] == null ? '' : (isNaN(Number(r[11])) ? String(r[11]) : Number(r[11]))
-  }));
+  const defs = readShuttles_(), cols = shuttleCols_(defs);
+  const width = Math.max(HEADERS.length, ...Object.keys(cols).map(k => cols[k]));
+  return sh.getRange(2, 1, n, width).getValues().map((r, i) => {
+    const shuttles = {};
+    defs.forEach(s => { const v = cols[s.name] ? r[cols[s.name] - 1] : ''; shuttles[s.name] = v === '' || v == null || isNaN(Number(v)) ? '' : Number(v); });
+    return {
+      row: i + 2, table: r[0], first: r[1], last: r[2], display: r[3], form: r[4], phone: String(r[5]),
+      id: String(r[6]), viewed: iso(r[7]), count: r[8] === '' ? null : Number(r[8]), sent: iso(r[9]), note: r[10], shuttles
+    };
+  });
 }
 
 function find_(id) {

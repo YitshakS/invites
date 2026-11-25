@@ -30,8 +30,10 @@ function render(g) {
     'רבות': { see1: 'נשמח לראותכן', seeN: 'נשמח לראותכן' }
   }[g.form] || { see1: 'נשמח לראותך', seeN: 'נשמח לראותכם' };
   saved = g.count;
-  // הסעה: מספר המקומות שהמוזמן ביקש. ריק = לא ענה, 0 = לא מעוניין
-  const trSaved = g.transport === '' || g.transport == null || isNaN(Number(g.transport)) ? '' : Number(g.transport);
+  // הסעות (מוגדרות בלוח הניהול): לכל הסעה, מספר הנוסעים שהמוזמן בחר. ריק = לא ענה, 0 = לא מעוניין
+  const shuttles = g.shuttles || [], mine = g.mine || {};
+  const mineN = s => (mine[s.name] === '' || mine[s.name] == null ? 0 : Number(mine[s.name]));
+  const answered = shuttles.some(s => mine[s.name] !== '' && mine[s.name] != null);
   lastG = g;
   app.innerHTML =
     (PREVIEW ? '<div class="banner"><b>תצוגה מקדימה בלבד!</b> הצפיה בהזמנה ואישור כמות המשתתפים אינם נשמרים במאגר הנתונים</div>' : '') +
@@ -40,11 +42,13 @@ function render(g) {
     '<div class="stepper"><label for="count">כמות המשתתפים</label><button type="button" id="minus" aria-label="הפחת">-</button>' +
     '<input type="number" id="count" min="0" max="50" inputmode="numeric" value="' + (g.count == null ? '' : g.count) + '">' +
     '<button type="button" id="plus" aria-label="הוסף">+</button></div>' +
-    (CONFIG.transport ? '<div class="tr" id="trBox" hidden><span>מעוניינים בהסעה?</span>' +
-      '<label><input type="radio" name="tr" value="כן"' + (trSaved > 0 ? ' checked' : '') + '> כן</label>' +
-      '<label><input type="radio" name="tr" value="לא"' + (trSaved === 0 ? ' checked' : '') + '> לא</label>' +
-      '<span class="trn" id="trN" hidden><label for="trNum">כמה מקומות בהסעה?</label>' +
-      '<input type="number" id="trNum" min="1" max="50" inputmode="numeric" value="' + (trSaved > 0 ? trSaved : '') + '"></span></div>' : '') +
+    (shuttles.length ? '<div class="tr" id="trBox" hidden><span>מעוניינים בהסעה?</span>' +
+      '<label><input type="radio" name="tr" value="כן"' + (shuttles.some(s => mineN(s) > 0) ? ' checked' : '') + '> כן</label>' +
+      '<label><input type="radio" name="tr" value="לא"' + (answered && !shuttles.some(s => mineN(s) > 0) ? ' checked' : '') + '> לא</label>' +
+      '<div class="trl" id="trL" hidden>' + shuttles.map((s, i) =>
+        '<div class="trs"><label><input type="checkbox" class="trc" data-i="' + i + '"' + (mineN(s) > 0 ? ' checked' : '') + (s.left === 0 ? ' disabled' : '') + '> ' + esc(s.name) + (s.left === 0 ? ' (מלאה)' : '') + '</label>' +
+        '<span class="trn" hidden><input type="number" class="trq" data-i="' + i + '" min="1" inputmode="numeric" aria-label="מספר נוסעים ב' + esc(s.name) + '" value="' + (mineN(s) > 0 ? mineN(s) : '') + '"> נוסעים</span></div>').join('') +
+      '</div></div>' : '') +
     '<button type="button" class="primary" id="ok" disabled>אישור</button>' +
     '<p id="msg"></p>' +
     (MAP ? '<p class="mapbox"><span class="muted">מפת הגעה (לחיצה להגדלה)</span><a href="' + esc(MAP) + '"><img class="map" src="' + esc(MAP) + '" alt="מפת הגעה"></a></p>' : '');
@@ -115,26 +119,32 @@ function render(g) {
     };
     stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', e => { pts.delete(e.pointerId); });
   }
-  // הסעה (רק באירוע עם transport ב-config.js): נשאלת רק כשיש משתתפים, ונשמרת יחד עם הכמות
-  const trBox = document.getElementById('trBox');
-  const trNum = document.getElementById('trNum'), trN = document.getElementById('trN');
+  // הסעות (רק כשהוגדרו בלוח הניהול): נשאלות רק כשיש משתתפים, ונשמרות יחד עם הכמות
+  const trBox = document.getElementById('trBox'), trL = document.getElementById('trL');
+  const trChk = [...app.querySelectorAll('.trc')], trQty = [...app.querySelectorAll('.trq')];
   const trYes = () => { const r = app.querySelector('input[name="tr"]:checked'); return !!r && r.value === 'כן'; };
-  // ערך ההסעה לשמירה: '' = לא נבחר, 0 = לא, מספר = כמות מקומות (NaN אם לא חוקי)
+  // ערך ההסעות לשמירה: null = עוד לא נבחר, אחרת מספר נוסעים לכל הסעה (0 = לא, NaN אם לא חוקי)
   const trVal = () => {
     const r = app.querySelector('input[name="tr"]:checked');
-    if (!r) return '';
-    if (r.value === 'לא') return 0;
-    return trNum.value === '' ? NaN : Number(trNum.value);
+    if (!r) return null;
+    const o = {};
+    shuttles.forEach((s, i) => { o[s.name] = trYes() && trChk[i].checked ? (trQty[i].value === '' ? NaN : Number(trQty[i].value)) : 0; });
+    return o;
   };
-  let savedTr = trSaved;
+  const trKey = o => (o ? JSON.stringify(shuttles.map(s => o[s.name])) : '');
+  const trMax = (s, n) => Math.min(n, s.left == null ? n : s.left);
+  let savedTr = answered ? trKey(Object.fromEntries(shuttles.map(s => [s.name, mineN(s)]))) : '';
   function syncTr(n) {
     if (!trBox) return;
     trBox.hidden = !(n > 0);
-    trN.hidden = !(n > 0 && trYes());
-    if (n > 0 && trYes()) {
-      trNum.max = n;
-      if (trNum.value === '' || Number(trNum.value) > n) trNum.value = n;
-    }
+    trL.hidden = !(n > 0 && trYes());
+    shuttles.forEach((s, i) => {
+      trQty[i].parentNode.hidden = !(n > 0 && trYes() && trChk[i].checked);
+      if (n > 0 && trYes() && trChk[i].checked) {
+        trQty[i].max = trMax(s, n);
+        if (trQty[i].value === '' || Number(trQty[i].value) > trMax(s, n)) trQty[i].value = trMax(s, n);
+      }
+    });
   }
   function check() {
     const n = count.value === '' ? NaN : Number(count.value);
@@ -143,15 +153,20 @@ function render(g) {
     const v = n;
     msg.className = '';
     if (!Number.isInteger(v) || v < 0 || v > 50) { msg.textContent = '⚠️ ערך לא חוקי'; msg.className = 'bad'; ok.disabled = true; return; }
-    if (trBox && v > 0 && trVal() === '') { ok.disabled = true; msg.textContent = 'יש לבחור אם מעוניינים בהסעה'; return; }
-    if (trBox && v > 0) { const t = trVal(); if (!Number.isInteger(t) || t < 0 || t > v || (trYes() && t < 1)) { ok.disabled = true; msg.textContent = '⚠️ מספר המקומות בהסעה לא חוקי'; msg.className = 'bad'; return; } }
-    const tr = trBox && v > 0 ? trVal() : '';
+    if (trBox && v > 0) {
+      const t = trVal();
+      if (t === null) { ok.disabled = true; msg.textContent = 'יש לבחור אם מעוניינים בהסעה'; return; }
+      if (trYes() && !shuttles.some(s => t[s.name] > 0)) { ok.disabled = true; msg.textContent = 'יש לבחור הסעה אחת לפחות'; return; }
+      if (shuttles.some(s => !Number.isInteger(t[s.name]) || t[s.name] < 0 || t[s.name] > trMax(s, v))) { ok.disabled = true; msg.textContent = '⚠️ מספר הנוסעים בהסעה לא חוקי'; msg.className = 'bad'; return; }
+    }
+    const tr = trBox && v > 0 ? trKey(trVal()) : '';
     if (v === saved && (!trBox || tr === (saved === 0 ? '' : savedTr))) { ok.disabled = true; msg.textContent = trBox ? '🟰 הפרטים שנבחרו זהים לפרטים שכבר נשמרו' : '🟰 הכמות שנבחרה זהה לכמות שכבר נשמרה'; return; }
     ok.disabled = false; msg.textContent = '';
   }
   count.addEventListener('input', check);
   app.querySelectorAll('input[name="tr"]').forEach(r => r.addEventListener('change', check));
-  if (trNum) trNum.addEventListener('input', check);
+  trChk.forEach(c => c.addEventListener('change', check));
+  trQty.forEach(q => q.addEventListener('input', check));
   syncTr(Number(count.value));
   document.getElementById('minus').onclick = () => { count.value = Math.max(0, (Number(count.value) || 0) - 1); check(); };
   document.getElementById('plus').onclick = () => { count.value = Math.min(50, (Number(count.value) || 0) + 1); check(); };
@@ -162,10 +177,10 @@ function render(g) {
     ok.innerHTML = '<span class="spin sm"></span>אישור';
     sending = true;
     try {
-      const tr = trBox && v > 0 ? trVal() : '';
-      const r = await api('rsvp', trBox ? { id, count: v, transport: tr } : { id, count: v });
+      const tv = trBox && v > 0 ? trVal() : null;
+      const r = await api('rsvp', tv ? { id, count: v, shuttles: tv } : { id, count: v });
       if (!r.ok) throw new Error(r.error);
-      saved = v; savedTr = tr;
+      saved = v; savedTr = tv ? trKey(tv) : '';
       msg.className = 'good';
       msg.textContent = v === 0
         ? 'תודה, העדכון התקבל. בעז"ה נתראה בשמחות הבאות'
@@ -177,7 +192,7 @@ function render(g) {
       });
     } catch (e) {
       msg.className = 'bad';
-      msg.textContent = '⚠️ העדכון לא התקבל, מומלץ לנסות שוב בעוד מספר דקות';
+      msg.textContent = e.message === 'shuttle_full' ? '⚠️ אחת ההסעות התמלאה בינתיים. מומלץ לרענן את הדף ולבחור שוב' : '⚠️ העדכון לא התקבל, מומלץ לנסות שוב בעוד מספר דקות';
       ok.disabled = false;
     } finally {
       sending = false;
