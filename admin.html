@@ -49,15 +49,17 @@
     /* העמודה הצמודה: הרוחב נקבע לפי השם הארוך ביותר או לפי הכותרת (שורה אחת). הסינון לא מרחיב אותה */
     .hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; white-space: nowrap; }
     .ic { display: inline-flex; align-items: center; gap: 6px; }
-    .sa { cursor: pointer; color: var(--muted); padding: 0 2px; }
+    .sa { cursor: pointer; color: var(--muted); padding: 8px 5px; margin: -8px 0; }
     thead tr.filters th.stick input { width: 0; min-width: 100%; }
     .clip { display: inline-block; max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
     @media (min-width: 700px) { .clip { max-width: 16em; } }
     td.cell:hover { background: #f3f7fb; }
-    .dh { cursor: grab; padding: 0 4px; color: var(--muted); font-weight: bold; touch-action: none; }
-    .pin { cursor: pointer; font-size: .75rem; opacity: .35; }
+    .stats > div { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .dh { cursor: grab; padding: 8px 6px; margin: -8px 0; color: var(--muted); font-weight: bold; touch-action: none; }
+    .pin { cursor: pointer; font-size: .75rem; opacity: .35; padding: 8px 4px; margin: -8px 0; }
     .pin.on { opacity: 1; }
     .sortable-ghost { opacity: .4; }
+    #tbl th.dropt { outline: 2px solid var(--accent); outline-offset: -2px; }
     .gap { display: inline-block; width: 1.2em; }
     .muted { color: var(--muted); }
     .wa { background: #25d366; color: #fff; border: none; }
@@ -138,6 +140,7 @@
 
     <section id="tab-contacts">
       <div class="panel stats" id="stats"></div>
+      <div class="panel stats" id="stats2" hidden></div>
       <div class="row" style="margin-bottom:8px"><button id="clearF">איפוס מיון ומסננים</button><button id="resetCols">איפוס סדר עמודות</button><span class="muted" id="shown"></span><span id="colMsg" style="color:var(--bad);font-size:.8rem"></span><span class="muted" id="tblHint" style="flex:1 1 auto;min-width:0;font-size:.74rem;line-height:1.3;white-space:nowrap"><span style="display:block">לחיצה על כותרת: מיון.</span><span style="display:block">הקלדה בשורה שמתחתיה: סינון.</span><span style="display:block">לחיצה על תא עם טקסט: עריכה.</span></span></div>
       <div class="tablebox"><table id="tbl"><thead></thead><tbody></tbody></table></div>
     </section>
@@ -154,7 +157,7 @@
     <section id="tab-shuttles" hidden>
       <div class="panel">
         <h2 class="sech">הסעות</h2>
-        <p class="muted" style="font-size:.85rem;margin:0 0 10px">המוזמנים בוחרים בדף האישור בין ההסעות שהוגדרו כאן, וכמה נוסעים בכל אחת. בגיליון נוספת עמודה לכל הסעה. אם אין הסעות, שאלת ההסעה לא מופיעה.</p>
+        <p class="muted" style="font-size:.85rem;margin:0 0 10px">כל ההסעות המוגדרות כאן מופיעות למוזמנים בדף אישור ההזמנה.<br>במידה שהם מעוניינים בהסעה, הם יכולים לבחור אותה ולהגדיר כמה מקומות לשמור להם בה.<br>ניתן להגביל את מספר המקומות בכל הסעה. במידה שלא נותרו מקומות, ההסעה תסומן כמלאה והמוזמנים לא יוכלו לבחור בה. להסעה ללא הגבלה משאירים את השדה ריק.</p>
         <div id="shList"></div>
         <div class="row" style="margin-top:10px"><button id="shAdd">הוספת הסעה</button><span id="shMsg" style="flex:1 1 auto"></span><button class="primary act" id="shSave">שמירה</button></div>
       </div>
@@ -345,7 +348,7 @@
   function drawShuttles() {
     $('#shList').innerHTML = shRows.length ? shRows.map((r, i) =>
       '<div class="row" style="margin-bottom:8px"><input class="grow shn" data-i="' + i + '" maxlength="40" placeholder="שם ההסעה, למשל: מתל אביב" aria-label="שם ההסעה" value="' + esc(r.name) + '">' +
-      '<input class="shc" data-i="' + i + '" type="number" min="1" max="500" inputmode="numeric" style="width:9.5em" placeholder="מקומות (לא חובה)" aria-label="מספר מקומות מרבי" value="' + esc(String(r.cap)) + '">' +
+      '<input class="shc" data-i="' + i + '" type="number" min="1" max="500" inputmode="numeric" style="width:9.5em" placeholder="מספר המקומות" aria-label="מספר מקומות מרבי" value="' + esc(String(r.cap)) + '">' +
       '<button class="shd" data-i="' + i + '" aria-label="מחיקת ההסעה" title="מחיקת ההסעה">✕</button></div>').join('') : '<p class="muted">לא הוגדרו הסעות.</p>';
     document.querySelectorAll('#shList .shn').forEach(el => el.oninput = () => { shRows[el.dataset.i].name = el.value; });
     document.querySelectorAll('#shList .shc').forEach(el => el.oninput = () => { shRows[el.dataset.i].cap = el.value; });
@@ -509,13 +512,30 @@
       saveCols(COLS.map(c => c.k));
     });
     if (window.Sortable) {
-      Sortable.create(document.querySelector('#tbl thead tr'), {
-        draggable: 'th', handle: '.dh', direction: 'horizontal', animation: 150,
-        forceFallback: true, scroll: document.querySelector('.tablebox'), scrollSensitivity: 60,
+      // Sortable לא מחשב נכון מיקום בשורה מימין לשמאל, ולכן הוא רק גורר (sort:false) והמקום החדש נקבע לפי מיקום העכבר או האצבע בעת השחרור
+      const row = document.querySelector('#tbl thead tr');
+      const ptX = e => { const t = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]) || e; return t.clientX; };
+      const cellAt = x => {
+        let best = 0, bd = Infinity;
+        [...row.children].forEach((c, i) => {
+          const r = c.getBoundingClientRect();
+          const d = x < r.left ? r.left - x : x > r.right ? x - r.right : Math.abs(x - (r.left + r.right) / 2) / 1e6;
+          if (d < bd) { bd = d; best = i; }
+        });
+        return best;
+      };
+      const unmark = () => row.querySelectorAll('.dropt').forEach(c => c.classList.remove('dropt'));
+      const track = e => { unmark(); row.children[cellAt(ptX(e))].classList.add('dropt'); };
+      Sortable.create(row, {
+        draggable: 'th', handle: '.dh', sort: false, forceFallback: true,
+        scroll: document.querySelector('.tablebox'), scrollSensitivity: 60,
+        onStart: () => { document.addEventListener('pointermove', track); document.addEventListener('touchmove', track); },
         onEnd: ev => {
-          if (ev.oldIndex === ev.newIndex) return;
+          document.removeEventListener('pointermove', track); document.removeEventListener('touchmove', track); unmark();
+          const to = cellAt(ptX(ev.originalEvent));
+          if (to === ev.oldIndex) return;
           const order = COLS.map(c => c.k);
-          order.splice(ev.newIndex, 0, order.splice(ev.oldIndex, 1)[0]);
+          order.splice(to, 0, order.splice(ev.oldIndex, 1)[0]);
           saveCols(order);
         }
       });
@@ -569,7 +589,10 @@
   function render() {
     const total = guests.length, sent = guests.filter(g => g.sent).length, viewed = guests.filter(g => g.viewed).length;
     const rep = guests.filter(replied).length, coming = guests.reduce((s, g) => s + (g.count > 0 ? g.count : 0), 0);
-    $('#stats').innerHTML = [['אנשי קשר', total], ['הזמנות שנשלחו', sent], ['הזמנות שנצפו', viewed], ['תגובות', rep], ['סה״כ משתתפים', coming]].concat(shuttleDefs.map(s => { const used = shuttleSeats(s.name); return ['בהסעה: ' + esc(s.name), s.cap ? used + '/' + s.cap : used]; })).map(x => '<div><b>' + x[1] + '</b>' + x[0] + '</div>').join('');
+    $('#stats').innerHTML = [['אנשי קשר', total], ['הזמנות שנשלחו', sent], ['הזמנות שנצפו', viewed], ['תגובות', rep], ['סה״כ משתתפים', coming]].map(x => '<div><b>' + x[1] + '</b>' + x[0] + '</div>').join('');
+    // הסעות: שורה נפרדת מתחת לסטטיסטיקה הרגילה, כדי שהכותרות לא ידחסו זו את זו במסך צר
+    $('#stats2').hidden = !shuttleDefs.length;
+    $('#stats2').innerHTML = shuttleDefs.map(s => { const used = shuttleSeats(s.name); return '<div title="' + esc(s.name) + '"><b>' + (s.cap ? used + '/' + s.cap : used) + '</b>' + esc(s.name) + '</div>'; }).join('');
     renderBody();
   }
 
