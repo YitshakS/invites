@@ -152,8 +152,13 @@
         <div class="stats" id="stats"></div>
         <div class="stats" id="stats2" hidden></div>
       </div>
-      <div class="muted" id="tblHint" style="margin-bottom:8px;font-size:.76rem;line-height:1.4;text-align:start"><span style="display:block;font-weight:bold;margin-bottom:3px">אפשרויות:</span><span style="display:block">📌 נעיצת/ביטול נעיצת העמודה הימנית בגלילה אופקית</span><span style="display:block">תיבת סינון: חיפוש תאים בעמודה המכילים את הטקסט שהוקלד</span><span style="display:block">↕ מיון (▲ עולה / ▼ יורד)</span><span style="display:block">⋮ גרירת עמודה (מאפשרת שינוי סדר העמודות)</span><span style="display:block">לחיצה על תא עם טקסט: עריכה</span></div>
-      <div id="sendNote" style="background:#e6f1fb;border:1px solid #bcd6ee;color:#1f4f7a;border-radius:10px;padding:6px 10px;margin-bottom:8px;font-size:.85rem;line-height:1.5">לאחר שליחת הזמנה חשוב לאשר שהיא נשלחה כדי שכפתור השליחה יציג לכם למי כבר שלחתם</div>
+      <div id="help" class="panel" style="padding:8px 10px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px"><b style="font-size:.9rem">הוראות</b><button id="helpToggle" type="button" style="padding:.1em .8em;font-size:.8rem">הסתר</button></div>
+        <div id="helpBody">
+          <div class="muted" id="tblHint" style="font-size:.76rem;line-height:1.4;text-align:start;margin-top:4px"><span style="display:block">📌 נעיצת/ביטול נעיצת העמודה הימנית בגלילה אופקית</span><span style="display:block">תיבת סינון: חיפוש תאים בעמודה המכילים את הטקסט שהוקלד</span><span style="display:block">↕ מיון (▲ עולה / ▼ יורד)</span><span style="display:block">⋮ גרירת עמודה (מאפשרת שינוי סדר העמודות)</span><span style="display:block">לחיצה על תא עם טקסט: עריכה</span></div>
+          <div id="sendNote" style="background:#e6f1fb;border:1px solid #bcd6ee;color:#1f4f7a;border-radius:10px;padding:6px 10px;margin-top:6px;font-size:.85rem;line-height:1.5">לאחר שליחת הזמנה חשוב לאשר שהיא נשלחה כדי שכפתור השליחה יציג לכם למי כבר שלחתם</div>
+        </div>
+      </div>
       <div class="row" style="margin-bottom:8px"><button id="clearF">איפוס מיון ומסננים</button><button id="resetCols">איפוס סדר עמודות</button><span class="muted" id="shown"></span><span id="colMsg" style="color:var(--bad);font-size:.8rem"></span></div>
       <div class="panel" id="emptyMsg" hidden style="text-align:center;line-height:1.6">על מנת לשלוח הזמנות יש להזין אנשי קשר. לחצו על הכפתור <b>הוספת אנשי קשר</b> שבראש העמוד.</div>
       <div class="tablebox"><table id="tbl"><thead></thead><tbody></tbody></table></div>
@@ -568,6 +573,18 @@
     });
   }
 
+  // הוראות: הצגה והסתרה, והבחירה נשמרת בדפדפן
+  (function () {
+    let hid = false;
+    try { hid = localStorage.getItem('adminHelpHidden') === '1'; } catch (e) {}
+    const apply = () => { $('#helpBody').hidden = hid; $('#helpToggle').textContent = hid ? 'הצג' : 'הסתר'; };
+    $('#helpToggle').onclick = () => {
+      hid = !hid;
+      try { localStorage.setItem('adminHelpHidden', hid ? '1' : '0'); } catch (e) {}
+      apply(); fitTable();
+    };
+    apply();
+  })();
   $('#resetCols').onclick = () => { colPrefs.p = true; saveCols(COLS_ALL.map(c => c.k)); };
   $('#clearF').onclick =() => { filt = {}; sort = { k: 'display', asc: true }; buildHead(); renderBody(); };
 
