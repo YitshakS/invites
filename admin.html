@@ -40,20 +40,22 @@
     .tablebox { overflow: auto; max-height: 75vh; background: #fff; border: 1px solid var(--line); border-radius: 12px; }
     table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: .92rem; }
     th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); border-inline-start: 1px solid var(--line); text-align: right; vertical-align: middle; background: #fff; white-space: nowrap; }
-    thead th { position: sticky; top: 0; z-index: 3; background: #f3f7fb; cursor: pointer; user-select: none; }
+    thead th { position: sticky; top: 0; z-index: 3; background: #f3f7fb; cursor: default; user-select: none; }
     thead tr.filters th { cursor: default; padding: 4px; z-index: 3; }
     thead tr.filters input, thead tr.filters select { width: 100%; min-width: 80px; padding: .25em .4em; font-size: .85rem; }
     th.stick, td.stick { position: sticky; inset-inline-start: 0; z-index: 2; border-inline-end: 2px solid var(--line); min-width: 6.2em; } /* מינימום רוחב: בטבלה ריקה אין שם ארוך שקובע את הרוחב, והכותרת הייתה גולשת על העמודה שלידה */
     thead th.stick, thead tr.filters th.stick { z-index: 5; }
     td.cell { cursor: pointer; min-width: 70px; }
-    /* העמודה הצמודה: הרוחב נקבע לפי השם הארוך ביותר. הכותרת והסינון לא מרחיבים אותה (הכותרת עוברת שורה אם צריך) */
-    th.stick .hd { display: block; width: 0; min-width: 100%; white-space: normal; }
+    /* העמודה הצמודה: הרוחב נקבע לפי השם הארוך ביותר או לפי הכותרת (שורה אחת). הסינון לא מרחיב אותה */
+    .hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; white-space: nowrap; }
+    .ic { display: inline-flex; align-items: center; gap: 6px; }
+    .sa { cursor: pointer; color: var(--muted); padding: 0 2px; }
     thead tr.filters th.stick input { width: 0; min-width: 100%; }
     .clip { display: inline-block; max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
     @media (min-width: 700px) { .clip { max-width: 16em; } }
     td.cell:hover { background: #f3f7fb; }
-    .dh { cursor: grab; padding: 0 4px; margin-inline-end: 2px; color: var(--muted); font-weight: bold; touch-action: none; }
-    .pin { cursor: pointer; font-size: .75rem; margin-inline-end: 4px; opacity: .35; }
+    .dh { cursor: grab; padding: 0 4px; color: var(--muted); font-weight: bold; touch-action: none; }
+    .pin { cursor: pointer; font-size: .75rem; opacity: .35; }
     .pin.on { opacity: 1; }
     .sortable-ghost { opacity: .4; }
     .gap { display: inline-block; width: 1.2em; }
@@ -418,24 +420,23 @@
 
   function buildHead() {
     const cur = Object.assign({}, filt);
-    const arrow = k => sort.k === k ? (sort.asc ? ' ▲' : ' ▼') : ' ↕';
     $('#tbl thead').innerHTML =
       '<tr>' + COLS.map((c, i) => {
         const st = isStick(i);
         const grip = '<span class="dh" title="גרירה להזזת העמודה" aria-label="הזזת העמודה">⋮</span>';
         const pin = i === 0 ? '<span class="pin' + (st ? ' on' : '') + '" role="button" title="' + (st ? 'ביטול נעיצת העמודה' : 'נעיצת העמודה') + '" aria-label="נעיצה">📌</span>' : '';
-        if (c.type === 'delete' || c.type === 'preview') return '<th class="' + (st ? 'stick' : '') + '" style="cursor:default">' + grip + pin + c.t + '</th>';
+        // הכותרת בשורה אחת: השם מימין, והאייקונים (נעץ, מיון, גרירה) משמאלו. רק לחיצה על אייקון מבצעת פעולה
+        const box = (name, icons) => '<span class="hd"><span class="tt">' + name + '</span><span class="ic">' + icons + '</span></span>';
+        if (c.type === 'delete' || c.type === 'preview') return '<th class="' + (st ? 'stick' : '') + '">' + box(c.t, pin + grip) + '</th>';
         const k = c.sk || c.k;
-        const title = c.t + '<span class="muted" style="' + (sort.k === k ? '' : 'opacity:.45') + '">' + arrow(k) + '</span>';
-        return '<th class="' + (st ? 'stick' : '') + '" data-s="' + k + '" data-c="' + c.k + '">' + grip + pin + (st ? '<span class="hd">' + title + '</span>' : title) + '</th>';
+        const sa = '<span class="sa" data-s="' + k + '" role="button" title="מיון" aria-label="מיון" style="' + (sort.k === k ? '' : 'opacity:.45') + '">' + (sort.k === k ? (sort.asc ? '▲' : '▼') : '↕') + '</span>';
+        return '<th class="' + (st ? 'stick' : '') + '">' + box(c.t, pin + sa + grip) + '</th>';
       }).join('') + '</tr>' +
       '<tr class="filters">' + COLS.map((c, i) => '<th class="' + (isStick(i) ? 'stick' : '') + '">' + filterControl(c) + '</th>').join('') + '</tr>';
-    document.querySelectorAll('#tbl .pin').forEach(el => el.onclick = e => {
-      e.stopPropagation();
+    document.querySelectorAll('#tbl .pin').forEach(el => el.onclick = () => {
       colPrefs.p = !colPrefs.p;
       saveCols(COLS.map(c => c.k));
     });
-    document.querySelectorAll('#tbl .dh').forEach(el => el.onclick = e => e.stopPropagation());
     if (window.Sortable) {
       Sortable.create(document.querySelector('#tbl thead tr'), {
         draggable: 'th', handle: '.dh', direction: 'horizontal', animation: 150,
@@ -458,8 +459,8 @@
       });
     });
     fixStickyTop();
-    document.querySelectorAll('#tbl th[data-s]').forEach(th => th.onclick = () => {
-      sort = { k: th.dataset.s, asc: sort.k === th.dataset.s ? !sort.asc : true };
+    document.querySelectorAll('#tbl .sa').forEach(el => el.onclick = () => {
+      sort = { k: el.dataset.s, asc: sort.k === el.dataset.s ? !sort.asc : true };
       buildHead(); renderBody();
     });
   }
