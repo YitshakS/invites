@@ -602,7 +602,7 @@
     const total = guests.length, sent = guests.filter(g => g.sent).length, viewed = guests.filter(g => g.viewed).length;
     const coming = guests.reduce((s, g) => s + (g.count > 0 ? g.count : 0), 0);
     const base = [['אנשי קשר', total], ['הזמנות שנשלחו', sent], ['הזמנות שנצפו', viewed], ['משתתפים', coming]].map(x => '<div><b>' + x[1] + '</b>' + x[0] + '</div>').join('');
-    const shut = shuttleDefs.map(s => { const used = shuttleSeats(s.name); return '<div title="הסעה ' + esc(s.name) + (s.cap ? ' (' + s.cap + ' מקומות)' : '') + '"><b>' + used + '</b>הסעה ' + esc(s.name) + (s.cap ? '<small>(מתוך ' + s.cap + ' מקומות)</small>' : '') + '</div>'; }).join('');
+    const shut = shuttleDefs.map(s => { const used = shuttleSeats(s.name); return '<div title="נוסעים בהסעה ' + esc(s.name) + (s.cap ? ' (' + s.cap + ' מקומות)' : '') + '"><b>' + used + '</b>נוסעים בהסעה ' + esc(s.name) + (s.cap ? '<small>(מתוך ' + s.cap + ' מקומות)</small>' : '') + '</div>'; }).join('');
     // כרטיס אחד. ההסעות מתחילות בשורה חדשה, כדי שהכותרות לא ידחסו זו את זו
     $('#stats').innerHTML = base;
     $('#stats2').hidden = !shuttleDefs.length;
