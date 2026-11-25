@@ -32,6 +32,12 @@
       #tblHint > span { display: inline !important; margin-inline-end: 6px; }
     }
 
+    /* מסך צר ואנכי (טלפון): הסטטיסטיקה עוברת לכמה שורות, כדי שהכותרות לא יעלו זו על זו */
+    @media (max-width: 600px) and (min-height: 521px) {
+      .stats { grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); row-gap: 8px; white-space: normal; font-size: .75rem; line-height: 1.2; }
+      .stats b { font-size: 1.25rem; }
+    }
+
     /* גלגלות גלילה עבות וקבועות (גם בטלפון, שם ברירת המחדל דקה ונעלמת), כדי שיהיה ברור שאפשר לגלול הצידה */
     .tablebox::-webkit-scrollbar { height: 14px; width: 14px; }
     .tablebox::-webkit-scrollbar-track { background: #dfeaf5; border-radius: 8px; }

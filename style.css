@@ -107,7 +107,7 @@ input, select { border: 1px solid var(--line); border-radius: 10px; padding: .4e
 /* שאלת הסעה (רק באירועים שהוגדרו בהם הסעות בלוח הניהול) */
 .tr .trl { flex-basis: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 10px; }
 .tr .trl[hidden] { display: none; }
-.tr .trs { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tr .trs { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 12px; }
 .tr .trs label:has(input:disabled) { color: var(--muted); cursor: not-allowed; }
 .tr .trs .trn { flex-basis: auto; }
 .tr { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 14px 0 4px; flex-wrap: wrap; }
