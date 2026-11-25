@@ -28,6 +28,8 @@
       .statbox.panel { padding: 4px 8px; margin-bottom: 4px; }
       .stats b { font-size: 1rem; line-height: 1.2; }
       #tab-contacts > .row { margin-bottom: 4px !important; flex-wrap: nowrap; }
+      /* בלשונית הטבלה הדף עצמו לא נגלל (הטבלה גוללת בתוך עצמה), כדי שאי אפשר יהיה לגרור את כל הדף למעלה ולהחביא תוכן מתחת לכפתורים */
+      html:has(#tab-contacts:not([hidden])), body:has(#tab-contacts:not([hidden])) { height: 100dvh; overflow: hidden; overscroll-behavior: none; }
       #tblHint { column-count: 3; column-gap: 16px; margin-bottom: 4px !important; } /* המקרא נשאר רשימה, בשלוש עמודות, כדי לא להגדיל את הדף */
       #tblHint > span { break-inside: avoid; }
     }
@@ -502,7 +504,7 @@
     if ($('#tab-contacts').hidden) return;
     const y = tb.getBoundingClientRect().top + window.scrollY;
     const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    tb.style.maxHeight = Math.max(vh < 520 ? 100 : 320, vh - y - 16) + 'px';
+    tb.style.maxHeight = Math.max(vh < 520 ? 60 : 320, vh - y - 16) + 'px';
   }
   if (window.visualViewport) window.visualViewport.addEventListener('resize', fitTable);
   window.addEventListener('resize', syncTopScroll);
