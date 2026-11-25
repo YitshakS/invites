@@ -28,8 +28,8 @@
       .statbox.panel { padding: 4px 8px; margin-bottom: 4px; }
       .stats b { font-size: 1rem; line-height: 1.2; }
       #tab-contacts > .row { margin-bottom: 4px !important; flex-wrap: nowrap; }
-      #tblHint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      #tblHint > span { display: inline !important; margin-inline-end: 6px; }
+      #tblHint { column-count: 3; column-gap: 16px; margin-bottom: 4px !important; } /* המקרא נשאר רשימה, בשלוש עמודות, כדי לא להגדיל את הדף */
+      #tblHint > span { break-inside: avoid; }
     }
 
     /* מסך צר ואנכי (טלפון): הסטטיסטיקה עוברת לכמה שורות, כדי שהכותרות לא יעלו זו על זו */
@@ -142,8 +142,8 @@
 
   <div id="main" hidden>
     <nav class="tabs">
-      <button data-tab="contacts" class="on">אנשי קשר</button>
-      <button data-tab="add">הוספת מוזמן</button>
+      <button data-tab="contacts" class="on">שליחת הזמנות</button>
+      <button data-tab="add">הוספת אנשי קשר</button>
       <button data-tab="shuttles">הסעות</button>
       <button data-tab="text" id="textTab" hidden>נוסחים</button>
       <button id="refresh" title="רענון" aria-label="רענון">↻</button>
@@ -154,8 +154,10 @@
         <div class="stats" id="stats"></div>
         <div class="stats" id="stats2" hidden></div>
       </div>
-      <div class="muted" id="tblHint" style="margin-bottom:8px;font-size:.76rem;line-height:1.4;text-align:start"><span style="display:block;font-weight:bold">אפשרויות:</span><span style="display:block">📌 נעיצת/ביטול נעיצת העמודה הימנית בגלילה אופקית</span><span style="display:block">תיבת סינון: חיפוש תאים בעמודה המכילים את הטקסט שהוקלד</span><span style="display:block">↕ מיון (▲ עולה / ▼ יורד)</span><span style="display:block">⋮ גרירת עמודה (מאפשרת שינוי סדר העמודות)</span><span style="display:block">לחיצה על תא עם טקסט: עריכה</span></div>
+      <div class="muted" id="tblHint" style="margin-bottom:8px;font-size:.76rem;line-height:1.4;text-align:start"><span style="display:block;font-weight:bold;margin-bottom:3px">אפשרויות:</span><span style="display:block">📌 נעיצת/ביטול נעיצת העמודה הימנית בגלילה אופקית</span><span style="display:block">תיבת סינון: חיפוש תאים בעמודה המכילים את הטקסט שהוקלד</span><span style="display:block">↕ מיון (▲ עולה / ▼ יורד)</span><span style="display:block">⋮ גרירת עמודה (מאפשרת שינוי סדר העמודות)</span><span style="display:block">לחיצה על תא עם טקסט: עריכה</span></div>
+      <div id="sendNote" style="background:#e6f1fb;border:1px solid #bcd6ee;color:#1f4f7a;border-radius:10px;padding:6px 10px;margin-bottom:8px;font-size:.85rem;line-height:1.5">לאחר שליחת הזמנה חשוב לאשר שהיא נשלחה כדי שכפתור השליחה יציג לכם למי כבר שלחתם</div>
       <div class="row" style="margin-bottom:8px"><button id="clearF">איפוס מיון ומסננים</button><button id="resetCols">איפוס סדר עמודות</button><span class="muted" id="shown"></span><span id="colMsg" style="color:var(--bad);font-size:.8rem"></span></div>
+      <div class="panel" id="emptyMsg" hidden style="text-align:center;line-height:1.6">על מנת לשלוח הזמנות יש להזין אנשי קשר. לחצו על הכפתור <b>הוספת אנשי קשר</b> שבראש העמוד.</div>
       <div class="tablebox"><table id="tbl"><thead></thead><tbody></tbody></table></div>
     </section>
 
@@ -500,7 +502,7 @@
     if ($('#tab-contacts').hidden) return;
     const y = tb.getBoundingClientRect().top + window.scrollY;
     const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    tb.style.maxHeight = Math.max(vh < 520 ? 150 : 320, vh - y - 16) + 'px';
+    tb.style.maxHeight = Math.max(vh < 520 ? 100 : 320, vh - y - 16) + 'px';
   }
   if (window.visualViewport) window.visualViewport.addEventListener('resize', fitTable);
   window.addEventListener('resize', syncTopScroll);
@@ -626,7 +628,8 @@
       COLS.forEach((c, i) => tr.append(cell(g, c, i)));
       body.append(tr);
     });
-    if (!list.length) body.innerHTML = '<tr><td colspan="' + COLS.length + '" class="muted" style="text-align:center">אין תוצאות</td></tr>';
+    $('#emptyMsg').hidden = guests.length > 0;
+    if (!list.length && guests.length) body.innerHTML = '<tr><td colspan="' + COLS.length + '" class="muted" style="text-align:center">אין תוצאות</td></tr>';
     syncTopScroll();
   }
 
