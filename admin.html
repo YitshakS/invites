@@ -165,7 +165,7 @@
         </div>
       </div>
       <div class="row" style="margin-bottom:8px"><button id="clearF">איפוס מיון ומסננים</button><button id="resetCols">איפוס סדר עמודות</button><span class="muted" id="shown"></span><span id="colMsg" style="color:var(--bad);font-size:.8rem"></span></div>
-      <div class="panel" id="emptyMsg" hidden style="text-align:center;line-height:1.6">על מנת לשלוח הזמנות יש להזין אנשי קשר. לחצו על הכפתור <b>הוספת אנשי קשר</b> שבראש העמוד.</div>
+      <div id="emptyMsg" hidden style="background:#fff3d6;border:1px solid #f0d9a0;color:#8a5a00;border-radius:10px;padding:8px 10px;margin-bottom:8px;text-align:center;line-height:1.6">על מנת לשלוח הזמנות יש להזין אנשי קשר. לחצו על הכפתור <a href="#" id="emptyAddLink" style="color:inherit;text-decoration:underline">הוספת אנשי קשר</a> שבראש העמוד.</div>
       <div class="tablebox"><table id="tbl"><thead></thead><tbody></tbody></table></div>
     </section>
 
@@ -590,6 +590,8 @@
     };
     apply();
   }
+  // הקישור בהודעת "אין אנשי קשר" פותח את לשונית ההוספה
+  $('#emptyAddLink').onclick = e => { e.preventDefault(); document.querySelector('[data-tab="add"]').click(); };
   foldable('#helpToggle', '#helpBody', 'adminHelpHidden');
   foldable('#statsToggle', '#statsBody', 'adminStatsHidden');
   $('#resetCols').onclick = () => { colPrefs.p = true; saveCols(COLS_ALL.map(c => c.k)); };
